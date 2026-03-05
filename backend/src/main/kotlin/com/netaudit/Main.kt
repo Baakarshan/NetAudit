@@ -16,6 +16,7 @@ import com.netaudit.config.loadConfig
 import com.netaudit.parser.ParserRegistry
 import com.netaudit.model.AppJson
 import com.netaudit.storage.DatabaseFactory
+import com.netaudit.api.statsRoutes
 import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
@@ -86,6 +87,7 @@ fun Application.module() {
         get("/health") {
             call.respond(mapOf("status" to "ok", "service" to "NetAudit"))
         }
+        statsRoutes()
     }
 
     // 初始化 ParserRegistry（Parser 注册在各 Spec 实现后补充）
