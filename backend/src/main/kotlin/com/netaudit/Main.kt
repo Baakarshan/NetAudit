@@ -17,6 +17,8 @@ import com.netaudit.parser.ParserRegistry
 import com.netaudit.model.AppJson
 import com.netaudit.storage.DatabaseFactory
 import com.netaudit.api.statsRoutes
+import com.netaudit.api.captureWebSocket
+import com.netaudit.event.AuditEventBus
 import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
@@ -93,9 +95,20 @@ fun Application.module() {
     // 初始化 ParserRegistry（Parser 注册在各 Spec 实现后补充）
     val registry = ParserRegistry()
 
+    // 初始化事件总线
+    val eventBus = AuditEventBus()
+
     // 初始化数据库
     DatabaseFactory.init(config.database)
 
-    // TODO: Spec 1 → 配置 /api/stats 和 /ws/capture
+    // 配置路由
+    routing {
+        get("/health") {
+            call.respond(mapOf("status" to "ok", "service" to "NetAudit"))
+        }
+        statsRoutes()
+        captureWebSocket(eventBus)
+    }
+
     // TODO: Spec 2 → 启动捕获引擎
 }
