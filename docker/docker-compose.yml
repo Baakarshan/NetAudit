@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     container_name: netaudit-postgres
     environment:
-      POSTGRES_DB: netaudit
-      POSTGRES_USER: netaudit
-      POSTGRES_PASSWORD: netaudit123
+      POSTGRES_DB: ${POSTGRES_DB:-netaudit}
+      POSTGRES_USER: ${POSTGRES_USER:-netaudit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netaudit123}
     ports:
       - "5432:5432"
     volumes:
@@ -20,13 +20,13 @@ services:
       dockerfile: ../docker/Dockerfile.backend
     container_name: netaudit-backend
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: netaudit
-      DB_USER: netaudit
-      DB_PASSWORD: netaudit123
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-netaudit}
+      DB_USER: ${DB_USER:-netaudit}
+      DB_PASSWORD: ${DB_PASSWORD:-netaudit123}
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       - postgres
     networks:
@@ -39,9 +39,12 @@ services:
     build:
       context: ../frontend
       dockerfile: ../docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8080}
     container_name: netaudit-frontend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
     networks:
