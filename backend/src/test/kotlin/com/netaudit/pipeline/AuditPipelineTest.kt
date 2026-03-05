@@ -13,9 +13,9 @@ class AuditPipelineTest {
     fun `test active stream count tracking`() = runTest {
         val config = CaptureConfig(
             interfaceName = "eth0",
-            snaplen = 65536,
+            snapshotLength = 65536,
             promiscuous = true,
-            timeoutMillis = 100,
+            readTimeoutMs = 100,
             channelBufferSize = 1024
         )
 

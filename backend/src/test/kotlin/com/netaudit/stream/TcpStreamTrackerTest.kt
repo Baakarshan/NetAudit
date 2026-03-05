@@ -25,7 +25,7 @@ class TcpStreamTrackerTest {
 
         val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
 
-        val streamKey = StreamKey("192.168.1.100", "192.168.1.1", 54321, 80)
+        val streamKey = StreamKey("192.168.1.100", 54321, "192.168.1.1", 80)
 
         // 发送 3 个分段的 TCP 包
         repeat(3) { i ->
@@ -58,7 +58,7 @@ class TcpStreamTrackerTest {
 
         val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
 
-        val streamKey = StreamKey("192.168.1.100", "192.168.1.1", 54321, 80)
+        val streamKey = StreamKey("192.168.1.100", 54321, "192.168.1.1", 80)
 
         // 发送数据包
         val dataMetadata = PacketMetadata(

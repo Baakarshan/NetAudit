@@ -1,9 +1,10 @@
 package com.netaudit.decode
 
 import com.netaudit.model.TransportProtocol
-import kotlinx.datetime.Clock
 import org.pcap4j.packet.*
 import org.pcap4j.packet.namednumber.*
+import org.pcap4j.util.MacAddress
+import java.net.InetAddress
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -17,21 +18,29 @@ class PacketDecoderTest {
     fun `test decode valid TCP HTTP packet`() {
         val payload = "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n".toByteArray()
 
+        val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
+        val dstAddr = InetAddress.getByName("192.168.1.1") as java.net.Inet4Address
+
         val tcpPacket = TcpPacket.Builder()
-            .srcPort(TcpPort(54321.toShort()))
+            .srcPort(TcpPort(54321.toShort(), ""))
             .dstPort(TcpPort.HTTP)
             .sequenceNumber(1000)
             .acknowledgmentNumber(0)
             .syn(false)
             .ack(true)
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
             .payloadBuilder(UnknownPacket.Builder().rawData(payload))
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
             .build()
 
         val ipPacket = IpV4Packet.Builder()
-            .srcAddr(IpV4Address.getByName("192.168.1.100"))
-            .dstAddr(IpV4Address.getByName("192.168.1.1"))
+            .version(IpVersion.IPV4)
+            .tos(IpV4Rfc791Tos.newInstance(0))
+            .ttl(64.toByte())
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
             .protocol(IpNumber.TCP)
             .payloadBuilder(UnknownPacket.Builder().rawData(tcpPacket.rawData))
             .correctChecksumAtBuild(true)
@@ -64,17 +73,25 @@ class PacketDecoderTest {
     fun `test decode valid UDP DNS packet`() {
         val dnsQuery = byteArrayOf(0x12, 0x34, 0x01, 0x00, 0x00, 0x01)
 
+        val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
+        val dstAddr = InetAddress.getByName("8.8.8.8") as java.net.Inet4Address
+
         val udpPacket = UdpPacket.Builder()
-            .srcPort(UdpPort(54321.toShort()))
+            .srcPort(UdpPort(54321.toShort(), ""))
             .dstPort(UdpPort.DOMAIN)
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
             .payloadBuilder(UnknownPacket.Builder().rawData(dnsQuery))
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
             .build()
 
         val ipPacket = IpV4Packet.Builder()
-            .srcAddr(IpV4Address.getByName("192.168.1.100"))
-            .dstAddr(IpV4Address.getByName("8.8.8.8"))
+            .version(IpVersion.IPV4)
+            .tos(IpV4Rfc791Tos.newInstance(0))
+            .ttl(64.toByte())
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
             .protocol(IpNumber.UDP)
             .payloadBuilder(UnknownPacket.Builder().rawData(udpPacket.rawData))
             .correctChecksumAtBuild(true)
@@ -103,9 +120,9 @@ class PacketDecoderTest {
             .protocolType(EtherType.IPV4)
             .operation(ArpOperation.REQUEST)
             .srcHardwareAddr(MacAddress.getByName("00:11:22:33:44:55"))
-            .srcProtocolAddr(IpV4Address.getByName("192.168.1.100"))
+            .srcProtocolAddr(InetAddress.getByName("192.168.1.100") as java.net.Inet4Address)
             .dstHardwareAddr(MacAddress.ETHER_BROADCAST_ADDRESS)
-            .dstProtocolAddr(IpV4Address.getByName("192.168.1.1"))
+            .dstProtocolAddr(InetAddress.getByName("192.168.1.1") as java.net.Inet4Address)
             .build()
 
         val ethPacket = EthernetPacket.Builder()
@@ -123,20 +140,28 @@ class PacketDecoderTest {
 
     @Test
     fun `test decode TCP SYN packet with no payload`() {
+        val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
+        val dstAddr = InetAddress.getByName("192.168.1.1") as java.net.Inet4Address
+
         val tcpPacket = TcpPacket.Builder()
-            .srcPort(TcpPort(54321.toShort()))
+            .srcPort(TcpPort(54321.toShort(), ""))
             .dstPort(TcpPort.HTTP)
             .sequenceNumber(1000)
             .acknowledgmentNumber(0)
             .syn(true)
             .ack(false)
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
             .build()
 
         val ipPacket = IpV4Packet.Builder()
-            .srcAddr(IpV4Address.getByName("192.168.1.100"))
-            .dstAddr(IpV4Address.getByName("192.168.1.1"))
+            .version(IpVersion.IPV4)
+            .tos(IpV4Rfc791Tos.newInstance(0))
+            .ttl(64.toByte())
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
             .protocol(IpNumber.TCP)
             .payloadBuilder(UnknownPacket.Builder().rawData(tcpPacket.rawData))
             .correctChecksumAtBuild(true)

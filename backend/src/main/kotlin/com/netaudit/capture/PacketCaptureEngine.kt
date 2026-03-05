@@ -8,8 +8,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import org.pcap4j.core.PcapHandle
 import org.pcap4j.core.PcapNativeException
+import org.pcap4j.core.PcapNetworkInterface.PromiscuousMode
 import org.pcap4j.core.Pcaps
-import org.pcap4j.core.PcapHandle.PcapDirection
 import org.pcap4j.packet.Packet
 
 private val logger = KotlinLogging.logger {}
@@ -50,8 +50,8 @@ class PacketCaptureEngine(
             val nif = Pcaps.getDevByName(config.interfaceName)
             handle = nif.openLive(
                 config.snapshotLength,
-                if (config.promiscuous) PcapHandle.PromiscuousMode.PROMISCUOUS
-                else PcapHandle.PromiscuousMode.NONPROMISCUOUS,
+                if (config.promiscuous) PromiscuousMode.PROMISCUOUS
+                else PromiscuousMode.NONPROMISCUOUS,
                 config.readTimeoutMs
             )
 
