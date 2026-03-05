@@ -23,10 +23,8 @@ import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
 
-fun main() {
-    embeddedServer(Netty, port = 8080) {
-        module()
-    }.start(wait = true)
+fun main(args: Array<String>) {
+    io.ktor.server.netty.EngineMain.main(args)
 }
 
 fun Application.module() {
@@ -82,14 +80,6 @@ fun Application.module() {
                 mapOf("error" to "Not Found", "message" to "Resource not found")
             )
         }
-    }
-
-    // 配置路由
-    routing {
-        get("/health") {
-            call.respond(mapOf("status" to "ok", "service" to "NetAudit"))
-        }
-        statsRoutes()
     }
 
     // 初始化 ParserRegistry（Parser 注册在各 Spec 实现后补充）
