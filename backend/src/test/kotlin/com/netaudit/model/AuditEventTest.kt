@@ -25,7 +25,7 @@ class AuditEventTest {
             statusCode = 200
         )
 
-        val json = AppJson.encodeToString(event)
+        val json = AppJson.encodeToString<AuditEvent>(event)
         assertTrue(json.contains("\"protocol\":\"HTTP\""))
 
         val decoded = AppJson.decodeFromString<AuditEvent>(json)
@@ -49,7 +49,7 @@ class AuditEventTest {
             stage = "DATA"
         )
 
-        val json = AppJson.encodeToString(event)
+        val json = AppJson.encodeToString<AuditEvent>(event)
         assertTrue(json.contains("\"protocol\":\"SMTP\""))
 
         val decoded = AppJson.decodeFromString<AuditEvent>(json)
@@ -72,7 +72,7 @@ class AuditEventTest {
             currentDirectory = "/home/testuser"
         )
 
-        val json = AppJson.encodeToString(event)
+        val json = AppJson.encodeToString<AuditEvent>(event)
         assertTrue(json.contains("\"protocol\":\"FTP\""))
 
         val decoded = AppJson.decodeFromString<AuditEvent>(json)
@@ -96,7 +96,7 @@ class AuditEventTest {
             responseTtl = 3600
         )
 
-        val json = AppJson.encodeToString(event)
+        val json = AppJson.encodeToString<AuditEvent>(event)
         assertTrue(json.contains("\"protocol\":\"DNS\""))
 
         val decoded = AppJson.decodeFromString<AuditEvent>(json)

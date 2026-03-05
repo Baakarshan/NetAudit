@@ -1,41 +1,37 @@
 package com.netaudit.parser
 
-import com.netaudit.model.ProtocolType
+import io.github.oshai.kotlinlogging.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
 
 /**
- * 协议解析器注册中心。
- *
- * 负责：
- * 1. 管理所有协议解析器实例
- * 2. 根据端口号路由到对应解析器
- * 3. 根据协议类型获取解析器
+ * 端口 → 解析器 的注册表。
+ * 注册表模式：O(1) 路由分发。
  */
 class ParserRegistry {
-    private val parsersByType = mutableMapOf<ProtocolType, ProtocolParser>()
-    private val parsersByPort = mutableMapOf<Int, ProtocolParser>()
+    private val portToParser = mutableMapOf<Int, ProtocolParser>()
+    private val allParsersList = mutableListOf<ProtocolParser>()
 
-    /**
-     * 注册一个协议解析器
-     */
+    /** 注册一个 Parser，自动将其所有端口映射到该 Parser */
     fun register(parser: ProtocolParser) {
-        parsersByType[parser.protocolType] = parser
+        allParsersList.add(parser)
         parser.ports.forEach { port ->
-            parsersByPort[port] = parser
+            portToParser[port] = parser
+            logger.info { "Registered ${parser.protocolType} parser on port $port" }
         }
     }
 
-    /**
-     * 根据端口号获取解析器（用于自动识别协议）
-     */
-    fun getByPort(port: Int): ProtocolParser? = parsersByPort[port]
+    /** 根据端口号查找对应的 Parser */
+    fun findByPort(port: Int): ProtocolParser? = portToParser[port]
 
-    /**
-     * 根据协议类型获取解析器
-     */
-    fun getByType(type: ProtocolType): ProtocolParser? = parsersByType[type]
+    /** 根据 src 或 dst 端口查找 Parser（双向匹配） */
+    fun findByEitherPort(srcPort: Int, dstPort: Int): ProtocolParser? {
+        return portToParser[dstPort] ?: portToParser[srcPort]
+    }
 
-    /**
-     * 获取所有已注册的解析器
-     */
-    fun getAllParsers(): List<ProtocolParser> = parsersByType.values.toList()
+    /** 获取所有已注册的 Parser */
+    fun allParsers(): List<ProtocolParser> = allParsersList.toList()
+
+    /** 获取所有已注册的端口 */
+    fun allPorts(): Set<Int> = portToParser.keys.toSet()
 }

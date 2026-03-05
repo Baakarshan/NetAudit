@@ -4,7 +4,8 @@ plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
     application
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    // Shadow plugin 暂时注释，等 Gradle 版本兼容后再启用
+    // id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.netaudit"
@@ -52,6 +53,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
 
     // Testing
+    testImplementation(kotlin("test"))
     testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
     testImplementation("io.kotest:kotest-assertions-core:5.9.1")
     testImplementation("io.mockk:mockk:1.13.12")
@@ -82,6 +84,8 @@ kotlin {
     jvmToolchain(21)
 }
 
+// Shadow JAR 配置暂时注释
+/*
 tasks.shadowJar {
     archiveBaseName.set("netaudit")
     archiveClassifier.set("all")
@@ -91,3 +95,4 @@ tasks.shadowJar {
         attributes("Main-Class" to "com.netaudit.MainKt")
     }
 }
+*/
