@@ -38,8 +38,8 @@ class TcpStreamTracker(
      */
     suspend fun handleTcpPacket(metadata: PacketMetadata) {
         val key = StreamKey(
-            metadata.srcIp, metadata.dstIp,
-            metadata.srcPort, metadata.dstPort
+            metadata.srcIp, metadata.srcPort,
+            metadata.dstIp, metadata.dstPort
         )
         val canonicalKey = key.canonical()
 
@@ -82,7 +82,7 @@ class TcpStreamTracker(
         val direction = if (registry.findByPort(metadata.dstPort) != null)
             Direction.CLIENT_TO_SERVER else Direction.SERVER_TO_CLIENT
 
-        val key = StreamKey(metadata.srcIp, metadata.dstIp, metadata.srcPort, metadata.dstPort)
+        val key = StreamKey(metadata.srcIp, metadata.srcPort, metadata.dstIp, metadata.dstPort)
         val context = StreamContext(
             key = key,
             metadata = metadata,

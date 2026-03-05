@@ -40,11 +40,9 @@ class PacketDecoder {
         val srcIp = ipPacket.header.srcAddr.hostAddress
         val dstIp = ipPacket.header.dstAddr.hostAddress
 
-        // 时间戳转换：Pcap4J 的 Packet.getTimestamp() 返回 java.sql.Timestamp
-        // 转换为 kotlinx.datetime.Instant
-        val timestamp = packet.timestamp?.let {
-            Instant.fromEpochMilliseconds(it.time)
-        } ?: Clock.System.now()
+        // 时间戳：使用当前时间
+        // 注意：Pcap4J 的 Packet 对象在某些情况下可能没有时间戳
+        val timestamp = Clock.System.now()
 
         // L4 - TCP
         val tcpPacket = packet.get(TcpPacket::class.java)

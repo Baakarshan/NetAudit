@@ -49,10 +49,10 @@ class PacketCaptureEngine(
         try {
             val nif = Pcaps.getDevByName(config.interfaceName)
             handle = nif.openLive(
-                config.snaplen,
+                config.snapshotLength,
                 if (config.promiscuous) PcapHandle.PromiscuousMode.PROMISCUOUS
                 else PcapHandle.PromiscuousMode.NONPROMISCUOUS,
-                config.timeoutMillis
+                config.readTimeoutMs
             )
 
             logger.info {
