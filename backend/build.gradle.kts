@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
     application
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.netaudit"
@@ -23,10 +24,11 @@ dependencies {
     implementation("io.ktor:ktor-server-cors:$ktorVersion")
     implementation("io.ktor:ktor-server-websockets:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
+    implementation("io.ktor:ktor-server-sse:$ktorVersion")
 
     // Pcap4J - 网络包捕获
-    implementation("org.pcap4j:pcap4j-core:1.8.2")
-    implementation("org.pcap4j:pcap4j-packetfactory-static:1.8.2")
+    implementation("org.pcap4j:pcap4j-core:1.8.4")
+    implementation("org.pcap4j:pcap4j-packetfactory-static:1.8.4")
 
     // Exposed ORM
     val exposedVersion = "0.54.0"
@@ -58,13 +60,13 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.netaudit.ApplicationKt")
+    mainClass.set("com.netaudit.MainKt")
 }
 
 tasks.withType<KotlinCompile> {
     kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs = listOf("-Xjsr305=strict")
+        jvmTarget = "21"
+        freeCompilerArgs = listOf("-Xjsr305=strict", "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi")
     }
 }
 
@@ -77,5 +79,15 @@ tasks.withType<Test> {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("netaudit")
+    archiveClassifier.set("all")
+    archiveVersion.set("")
+    mergeServiceFiles()
+    manifest {
+        attributes("Main-Class" to "com.netaudit.MainKt")
+    }
 }

@@ -1,1 +1,1 @@
-rootProject.name = "netaudit-backend"
+rootProject.name = "net-audit"
