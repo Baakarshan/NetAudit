@@ -1,0 +1,75 @@
+# Claude Code
+.claude/
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Kotlin
+*.class
+*.jar
+*.war
+*.ear
+*.log
+*.iml
+.idea/
+*.ipr
+*.iws
+out/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Auto-generated
+auto-imports.d.ts
+components.d.ts
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+
+# Test
+coverage/
+.nyc_output/
+
+# Pcap files
+*.pcap
+*.pcapng
+
+# Temp
+tmp/
+temp/
+
+# Project docs (not for version control)
+specs/
+CLAUDE.md

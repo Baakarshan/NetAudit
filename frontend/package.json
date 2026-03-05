@@ -1,0 +1,29 @@
+{
+  "name": "netaudit-frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5",
+    "pinia": "^2.2.6",
+    "element-plus": "^2.8.8",
+    "axios": "^1.7.9",
+    "echarts": "^5.5.1",
+    "vue-echarts": "^7.0.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.3",
+    "vue-tsc": "^2.1.10",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2",
+    "unplugin-vue-components": "^0.27.4",
+    "unplugin-auto-import": "^0.18.6"
+  }
+}

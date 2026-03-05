@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: netaudit-postgres
+    environment:
+      POSTGRES_DB: netaudit
+      POSTGRES_USER: netaudit
+      POSTGRES_PASSWORD: netaudit123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - netaudit-network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: netaudit-backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: netaudit
+      DB_USER: netaudit
+      DB_PASSWORD: netaudit123
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - netaudit-network
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: netaudit-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - netaudit-network
+
+volumes:
+  postgres_data:
+
+networks:
+  netaudit-network:
+    driver: bridge
