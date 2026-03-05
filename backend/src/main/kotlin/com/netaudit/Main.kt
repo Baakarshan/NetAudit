@@ -15,6 +15,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import com.netaudit.config.loadConfig
 import com.netaudit.parser.ParserRegistry
 import com.netaudit.model.AppJson
+import com.netaudit.storage.DatabaseFactory
 import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
@@ -90,7 +91,9 @@ fun Application.module() {
     // 初始化 ParserRegistry（Parser 注册在各 Spec 实现后补充）
     val registry = ParserRegistry()
 
-    // TODO: Spec 1 → 初始化数据库
+    // 初始化数据库
+    DatabaseFactory.init(config.database)
+
     // TODO: Spec 1 → 配置 /api/stats 和 /ws/capture
     // TODO: Spec 2 → 启动捕获引擎
 }
