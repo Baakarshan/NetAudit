@@ -36,23 +36,18 @@ class PacketDecoder {
      */
     fun decode(packet: Packet): PacketMetadata? {
         // L2 - Ethernet
-        val ethPacket = packet.get(EthernetPacket::class.java) ?: return null
+        val ethPacket = (packet as? EthernetPacket)
+            ?: packet.get(EthernetPacket::class.java)
+            ?: return null
         val srcMac = ethPacket.header.srcAddr.toString()
         val dstMac = ethPacket.header.dstAddr.toString()
 
         // L3 - IPv4
-        val ipPacket = packet.get(IpV4Packet::class.java) ?: run {
-            if (ethPacket.header.type != EtherType.IPV4) {
-                return null
-            }
-            val payload = ethPacket.payload ?: return null
-            val raw = payload.rawData ?: return null
-            try {
-                IpV4Packet.newPacket(raw, 0, raw.size)
-            } catch (_: Exception) {
-                null
-            }
-        } ?: return null
+        val ipPacket = (ethPacket.payload as? IpV4Packet)
+            ?: packet.get(IpV4Packet::class.java)
+            ?: parseIpFromPayload(ethPacket)
+            ?: parseIpFromRaw(ethPacket)
+            ?: return null
         val srcIp = ipPacket.header.srcAddr.hostAddress
         val dstIp = ipPacket.header.dstAddr.hostAddress
 
@@ -109,6 +104,35 @@ class PacketDecoder {
         }
 
         return null  // 既不是 TCP 也不是 UDP
+    }
+
+    private fun parseIpFromPayload(ethPacket: EthernetPacket): IpV4Packet? {
+        if (ethPacket.header.type != EtherType.IPV4) {
+            return null
+        }
+        val payload = ethPacket.payload ?: return null
+        val raw = payload.rawData ?: return null
+        return try {
+            IpV4Packet.newPacket(raw, 0, raw.size)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun parseIpFromRaw(ethPacket: EthernetPacket): IpV4Packet? {
+        if (ethPacket.header.type != EtherType.IPV4) {
+            return null
+        }
+        val raw = ethPacket.rawData ?: return null
+        val headerSize = 14 // Ethernet header length (no VLAN)
+        if (raw.size <= headerSize) {
+            return null
+        }
+        return try {
+            IpV4Packet.newPacket(raw, headerSize, raw.size - headerSize)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun resolveTimestamp(packet: Packet): Instant {

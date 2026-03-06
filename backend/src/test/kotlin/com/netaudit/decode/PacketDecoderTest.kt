@@ -21,7 +21,7 @@ class PacketDecoderTest {
         val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
         val dstAddr = InetAddress.getByName("192.168.1.1") as java.net.Inet4Address
 
-        val tcpPacket = TcpPacket.Builder()
+        val tcpBuilder = TcpPacket.Builder()
             .srcPort(TcpPort(54321.toShort(), ""))
             .dstPort(TcpPort.HTTP)
             .sequenceNumber(1000)
@@ -33,25 +33,23 @@ class PacketDecoderTest {
             .payloadBuilder(UnknownPacket.Builder().rawData(payload))
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
-            .build()
 
-        val ipPacket = IpV4Packet.Builder()
+        val ipBuilder = IpV4Packet.Builder()
             .version(IpVersion.IPV4)
             .tos(IpV4Rfc791Tos.newInstance(0))
             .ttl(64.toByte())
             .srcAddr(srcAddr)
             .dstAddr(dstAddr)
             .protocol(IpNumber.TCP)
-            .payloadBuilder(UnknownPacket.Builder().rawData(tcpPacket.rawData))
+            .payloadBuilder(tcpBuilder)
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
-            .build()
 
         val ethPacket = EthernetPacket.Builder()
             .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
             .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
             .type(EtherType.IPV4)
-            .payloadBuilder(UnknownPacket.Builder().rawData(ipPacket.rawData))
+            .payloadBuilder(ipBuilder)
             .paddingAtBuild(true)
             .build()
 
@@ -76,7 +74,7 @@ class PacketDecoderTest {
         val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
         val dstAddr = InetAddress.getByName("8.8.8.8") as java.net.Inet4Address
 
-        val udpPacket = UdpPacket.Builder()
+        val udpBuilder = UdpPacket.Builder()
             .srcPort(UdpPort(54321.toShort(), ""))
             .dstPort(UdpPort.DOMAIN)
             .srcAddr(srcAddr)
@@ -84,25 +82,23 @@ class PacketDecoderTest {
             .payloadBuilder(UnknownPacket.Builder().rawData(dnsQuery))
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
-            .build()
 
-        val ipPacket = IpV4Packet.Builder()
+        val ipBuilder = IpV4Packet.Builder()
             .version(IpVersion.IPV4)
             .tos(IpV4Rfc791Tos.newInstance(0))
             .ttl(64.toByte())
             .srcAddr(srcAddr)
             .dstAddr(dstAddr)
             .protocol(IpNumber.UDP)
-            .payloadBuilder(UnknownPacket.Builder().rawData(udpPacket.rawData))
+            .payloadBuilder(udpBuilder)
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
-            .build()
 
         val ethPacket = EthernetPacket.Builder()
             .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
             .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
             .type(EtherType.IPV4)
-            .payloadBuilder(UnknownPacket.Builder().rawData(ipPacket.rawData))
+            .payloadBuilder(ipBuilder)
             .paddingAtBuild(true)
             .build()
 
@@ -143,7 +139,7 @@ class PacketDecoderTest {
         val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
         val dstAddr = InetAddress.getByName("192.168.1.1") as java.net.Inet4Address
 
-        val tcpPacket = TcpPacket.Builder()
+        val tcpBuilder = TcpPacket.Builder()
             .srcPort(TcpPort(54321.toShort(), ""))
             .dstPort(TcpPort.HTTP)
             .sequenceNumber(1000)
@@ -154,25 +150,23 @@ class PacketDecoderTest {
             .dstAddr(dstAddr)
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
-            .build()
 
-        val ipPacket = IpV4Packet.Builder()
+        val ipBuilder = IpV4Packet.Builder()
             .version(IpVersion.IPV4)
             .tos(IpV4Rfc791Tos.newInstance(0))
             .ttl(64.toByte())
             .srcAddr(srcAddr)
             .dstAddr(dstAddr)
             .protocol(IpNumber.TCP)
-            .payloadBuilder(UnknownPacket.Builder().rawData(tcpPacket.rawData))
+            .payloadBuilder(tcpBuilder)
             .correctChecksumAtBuild(true)
             .correctLengthAtBuild(true)
-            .build()
 
         val ethPacket = EthernetPacket.Builder()
             .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
             .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
             .type(EtherType.IPV4)
-            .payloadBuilder(UnknownPacket.Builder().rawData(ipPacket.rawData))
+            .payloadBuilder(ipBuilder)
             .paddingAtBuild(true)
             .build()
 
