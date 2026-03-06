@@ -8,7 +8,7 @@ import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlin.test.Test
@@ -34,7 +34,7 @@ class BatchWriterTest {
                 eventBus.emitAudit(httpEvent("test-$i"))
             }
 
-            advanceUntilIdle()
+            runCurrent()
 
             coVerify(exactly = 1) { mockRepo.saveBatch(match { it.size == 3 }) }
         } finally {
@@ -63,7 +63,7 @@ class BatchWriterTest {
             }
 
             advanceTimeBy(600)
-            advanceUntilIdle()
+            runCurrent()
 
             coVerify(exactly = 1) { mockRepo.saveBatch(match { it.size == 2 }) }
         } finally {
@@ -88,7 +88,7 @@ class BatchWriterTest {
 
         try {
             advanceTimeBy(600)
-            advanceUntilIdle()
+            runCurrent()
 
             coVerify(exactly = 0) { mockRepo.saveBatch(any()) }
         } finally {
