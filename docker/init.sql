@@ -6,52 +6,41 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 设置时区
 SET timezone = 'Asia/Shanghai';
 
--- 创建数据包表（基础表）
-CREATE TABLE IF NOT EXISTS packets (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    timestamp TIMESTAMP NOT NULL,
-    protocol VARCHAR(20) NOT NULL,
-    src_ip VARCHAR(45) NOT NULL,
-    dst_ip VARCHAR(45) NOT NULL,
-    src_port INTEGER,
-    dst_port INTEGER,
-    payload_size INTEGER NOT NULL,
-    raw_data BYTEA,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- 审计日志表
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id            BIGSERIAL PRIMARY KEY,
+    event_id      VARCHAR(36) UNIQUE NOT NULL,
+    protocol      VARCHAR(10) NOT NULL,
+    src_ip        VARCHAR(45) NOT NULL,
+    dst_ip        VARCHAR(45) NOT NULL,
+    src_port      INTEGER NOT NULL,
+    dst_port      INTEGER NOT NULL,
+    alert_level   VARCHAR(10) NOT NULL DEFAULT 'INFO',
+    captured_at   TIMESTAMPTZ NOT NULL,
+    details       JSONB NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 创建索引
-CREATE INDEX idx_packets_timestamp ON packets(timestamp);
-CREATE INDEX idx_packets_protocol ON packets(protocol);
-CREATE INDEX idx_packets_src_ip ON packets(src_ip);
-CREATE INDEX idx_packets_dst_ip ON packets(dst_ip);
+CREATE INDEX IF NOT EXISTS idx_audit_protocol ON audit_logs(protocol);
+CREATE INDEX IF NOT EXISTS idx_audit_captured_at ON audit_logs(captured_at);
+CREATE INDEX IF NOT EXISTS idx_audit_src_ip ON audit_logs(src_ip);
+CREATE INDEX IF NOT EXISTS idx_audit_details ON audit_logs USING GIN (details);
 
--- HTTP 会话表
-CREATE TABLE IF NOT EXISTS http_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    packet_id UUID REFERENCES packets(id),
-    method VARCHAR(10),
-    url TEXT,
-    host VARCHAR(255),
-    user_agent TEXT,
-    status_code INTEGER,
-    content_type VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- 告警表
+CREATE TABLE IF NOT EXISTS alerts (
+    id             BIGSERIAL PRIMARY KEY,
+    alert_id       VARCHAR(36) UNIQUE NOT NULL,
+    timestamp      TIMESTAMPTZ NOT NULL,
+    level          VARCHAR(10) NOT NULL,
+    rule_name      VARCHAR(100) NOT NULL,
+    message        TEXT NOT NULL,
+    audit_event_id VARCHAR(36) NOT NULL,
+    protocol       VARCHAR(10) NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- FTP 会话表
-CREATE TABLE IF NOT EXISTS ftp_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    packet_id UUID REFERENCES packets(id),
-    command VARCHAR(20),
-    argument TEXT,
-    response_code INTEGER,
-    response_message TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+CREATE INDEX IF NOT EXISTS idx_alert_level ON alerts(level);
+CREATE INDEX IF NOT EXISTS idx_alert_timestamp ON alerts(timestamp);
 
--- 其他协议表将在后续 Spec 中定义
-
-COMMENT ON TABLE packets IS '网络数据包基础表';
-COMMENT ON TABLE http_sessions IS 'HTTP 协议会话表';
-COMMENT ON TABLE ftp_sessions IS 'FTP 协议会话表';
+COMMENT ON TABLE audit_logs IS '审计日志（所有协议统一存储）';
+COMMENT ON TABLE alerts IS '告警记录表';

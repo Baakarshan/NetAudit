@@ -5,7 +5,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import com.netaudit.storage.DatabaseFactory
-import com.netaudit.storage.PacketsTable
+import com.netaudit.storage.tables.AuditLogsTable
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.count
 
@@ -23,13 +23,13 @@ fun Route.statsRoutes() {
     route("/api") {
         get("/stats") {
             val stats = DatabaseFactory.dbQuery {
-                val total = PacketsTable.selectAll().count()
+                val total = AuditLogsTable.selectAll().count()
 
-                val protocolCounts = PacketsTable
-                    .select(PacketsTable.protocol, PacketsTable.id.count())
-                    .groupBy(PacketsTable.protocol)
+                val protocolCounts = AuditLogsTable
+                    .select(AuditLogsTable.protocol, AuditLogsTable.id.count())
+                    .groupBy(AuditLogsTable.protocol)
                     .associate {
-                        it[PacketsTable.protocol] to it[PacketsTable.id.count()]
+                        it[AuditLogsTable.protocol] to it[AuditLogsTable.id.count()]
                     }
 
                 SystemStats(

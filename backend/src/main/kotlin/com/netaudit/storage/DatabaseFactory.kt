@@ -1,14 +1,20 @@
 package com.netaudit.storage
 
 import com.netaudit.config.DatabaseConfig
+import com.netaudit.storage.tables.AuditLogsTable
+import com.netaudit.storage.tables.AlertsTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.Transaction
+import org.jetbrains.exposed.sql.exec
+import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.vendors.PostgreSQLDialect
 
 private val logger = KotlinLogging.logger {}
 
@@ -31,7 +37,7 @@ object DatabaseFactory {
             password = config.password
             maximumPoolSize = config.maxPoolSize
             isAutoCommit = false
-            transactionIsolation = "TRANSACTION_REPEATABLE_READ"
+            transactionIsolation = "TRANSACTION_READ_COMMITTED"
 
             // 连接池配置
             connectionTimeout = 30000
@@ -54,10 +60,11 @@ object DatabaseFactory {
     /**
      * 创建数据库表
      */
-    private fun createTables() {
+    fun createTables() {
         transaction {
             logger.info { "Creating database tables if not exist..." }
-            SchemaUtils.create(*allTables)
+            SchemaUtils.create(AuditLogsTable, AlertsTable)
+            configureJsonbIfPostgres(this)
             logger.info { "Database tables created successfully" }
         }
     }
@@ -78,4 +85,26 @@ object DatabaseFactory {
      */
     suspend fun <T> dbQuery(block: suspend () -> T): T =
         newSuspendedTransaction(Dispatchers.IO) { block() }
+
+    private fun configureJsonbIfPostgres(tx: Transaction) {
+        val isPostgres = TransactionManager.current().db.dialect is PostgreSQLDialect
+        if (!isPostgres) {
+            logger.debug { "Skip JSONB setup: non-PostgreSQL dialect" }
+            return
+        }
+
+        tx.exec(
+            """
+            ALTER TABLE audit_logs
+            ALTER COLUMN details TYPE jsonb USING details::jsonb
+            """.trimIndent()
+        )
+        tx.exec(
+            """
+            CREATE INDEX IF NOT EXISTS idx_audit_details
+            ON audit_logs USING GIN (details)
+            """.trimIndent()
+        )
+        logger.info { "JSONB type and GIN index created for audit_logs.details" }
+    }
 }

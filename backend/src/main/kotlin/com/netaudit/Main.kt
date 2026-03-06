@@ -16,9 +16,13 @@ import com.netaudit.config.loadConfig
 import com.netaudit.parser.ParserRegistry
 import com.netaudit.model.AppJson
 import com.netaudit.storage.DatabaseFactory
+import com.netaudit.storage.BatchWriter
+import com.netaudit.storage.impl.ExposedAlertRepository
+import com.netaudit.storage.impl.ExposedAuditRepository
 import com.netaudit.api.statsRoutes
 import com.netaudit.api.captureWebSocket
 import com.netaudit.event.AuditEventBus
+import com.netaudit.pipeline.AuditPipeline
 import java.time.Duration
 
 private val logger = KotlinLogging.logger {}
@@ -91,6 +95,11 @@ fun Application.module() {
     // 初始化数据库
     DatabaseFactory.init(config.database)
 
+    // 初始化 Repository
+    val auditRepo = ExposedAuditRepository(AppJson)
+    @Suppress("UNUSED_VARIABLE")
+    val alertRepo = ExposedAlertRepository()
+
     // 配置路由
     routing {
         get("/health") {
@@ -100,5 +109,11 @@ fun Application.module() {
         captureWebSocket(eventBus)
     }
 
-    // TODO: Spec 2 → 启动捕获引擎
+    // 批量写入器（Spec 3）
+    val batchWriter = BatchWriter(auditRepo, eventBus, this)
+    batchWriter.start()
+
+    // 启动捕获管道（Spec 2）
+    val pipeline = AuditPipeline(config.capture, registry, eventBus, this)
+    pipeline.start()
 }
