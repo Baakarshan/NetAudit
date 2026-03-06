@@ -14,6 +14,7 @@ import io.ktor.http.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import com.netaudit.config.loadConfig
 import com.netaudit.parser.ParserRegistry
+import com.netaudit.parser.http.HttpParser
 import com.netaudit.model.AppJson
 import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.BatchWriter
@@ -88,6 +89,7 @@ fun Application.module() {
 
     // 初始化 ParserRegistry（Parser 注册在各 Spec 实现后补充）
     val registry = ParserRegistry()
+    registry.register(HttpParser())
 
     // 初始化事件总线
     val eventBus = AuditEventBus()
