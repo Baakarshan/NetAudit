@@ -2,6 +2,7 @@ package com.netaudit.model
 
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * 审计事件基类 — 所有协议的审计记录。
@@ -31,7 +32,7 @@ sealed interface AuditEvent {
         override val dstIp: String,
         override val srcPort: Int,
         override val dstPort: Int,
-        override val protocol: ProtocolType = ProtocolType.HTTP,
+        @Transient override val protocol: ProtocolType = ProtocolType.HTTP,
         override val alertLevel: AlertLevel = AlertLevel.INFO,
         val method: String,          // GET, POST, etc.
         val url: String,             // 完整 URL (host + path)
@@ -49,7 +50,7 @@ sealed interface AuditEvent {
         override val dstIp: String,
         override val srcPort: Int,
         override val dstPort: Int,
-        override val protocol: ProtocolType = ProtocolType.FTP,
+        @Transient override val protocol: ProtocolType = ProtocolType.FTP,
         override val alertLevel: AlertLevel = AlertLevel.INFO,
         val username: String?,
         val command: String,         // USER, PASS, RETR, STOR, CWD, LIST, QUIT...
@@ -66,7 +67,7 @@ sealed interface AuditEvent {
         override val dstIp: String,
         override val srcPort: Int,
         override val dstPort: Int,
-        override val protocol: ProtocolType = ProtocolType.TELNET,
+        @Transient override val protocol: ProtocolType = ProtocolType.TELNET,
         override val alertLevel: AlertLevel = AlertLevel.INFO,
         val username: String?,
         val commandLine: String,     // 用户输入的完整命令行
@@ -81,7 +82,7 @@ sealed interface AuditEvent {
         override val dstIp: String,  // DNS 服务器地址
         override val srcPort: Int,
         override val dstPort: Int,
-        override val protocol: ProtocolType = ProtocolType.DNS,
+        @Transient override val protocol: ProtocolType = ProtocolType.DNS,
         override val alertLevel: AlertLevel = AlertLevel.INFO,
         val transactionId: Int,
         val queryDomain: String,
@@ -99,7 +100,7 @@ sealed interface AuditEvent {
         override val dstIp: String,
         override val srcPort: Int,
         override val dstPort: Int,
-        override val protocol: ProtocolType = ProtocolType.SMTP,
+        @Transient override val protocol: ProtocolType = ProtocolType.SMTP,
         override val alertLevel: AlertLevel = AlertLevel.INFO,
         val from: String?,                        // MAIL FROM / From header
         val to: List<String> = emptyList(),       // RCPT TO / To header
@@ -117,7 +118,7 @@ sealed interface AuditEvent {
         override val dstIp: String,
         override val srcPort: Int,
         override val dstPort: Int,
-        override val protocol: ProtocolType = ProtocolType.POP3,
+        @Transient override val protocol: ProtocolType = ProtocolType.POP3,
         override val alertLevel: AlertLevel = AlertLevel.INFO,
         val username: String?,
         val command: String,                      // USER, PASS, RETR, LIST, QUIT...

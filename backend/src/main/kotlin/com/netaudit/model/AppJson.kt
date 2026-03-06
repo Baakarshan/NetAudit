@@ -6,7 +6,7 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
 val AppJson = Json {
-    classDiscriminator = "__type"
+    classDiscriminator = "protocol"
     ignoreUnknownKeys = true
     encodeDefaults = true
     prettyPrint = false
