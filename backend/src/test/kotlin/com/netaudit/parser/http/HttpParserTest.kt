@@ -1,6 +1,7 @@
 package com.netaudit.parser.http
 
 import com.netaudit.model.Direction
+import com.netaudit.model.AuditEvent
 import com.netaudit.model.PacketMetadata
 import com.netaudit.model.StreamContext
 import com.netaudit.model.TcpFlags
@@ -20,7 +21,7 @@ class HttpParserTest {
         val payload = "GET /index.html HTTP/1.1\r\nHost: example.com\r\nUser-Agent: curl/7.68.0\r\n\r\n"
         val context = buildContext(payload)
 
-        val event = parser.parse(context)
+        val event = parser.parse(context) as? AuditEvent.HttpEvent
         assertNotNull(event)
         assertEquals("GET", event.method)
         assertEquals("http://example.com/index.html", event.url)
@@ -35,7 +36,7 @@ class HttpParserTest {
         val payload = "POST /api/login HTTP/1.1\r\nHost: api.example.com\r\nContent-Type: application/json\r\n\r\n{}"
         val context = buildContext(payload)
 
-        val event = parser.parse(context)
+        val event = parser.parse(context) as? AuditEvent.HttpEvent
         assertNotNull(event)
         assertEquals("POST", event.method)
         assertEquals("application/json", event.contentType)
@@ -63,7 +64,7 @@ class HttpParserTest {
             sessionState = sessionState
         )
 
-        val event = parser.parse(responseContext)
+        val event = parser.parse(responseContext) as? AuditEvent.HttpEvent
         assertNotNull(event)
         assertEquals(200, event.statusCode)
         assertEquals("GET", event.method)
