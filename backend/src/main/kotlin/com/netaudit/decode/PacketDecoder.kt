@@ -10,6 +10,8 @@ import org.pcap4j.packet.EthernetPacket
 import org.pcap4j.packet.IpV4Packet
 import org.pcap4j.packet.TcpPacket
 import org.pcap4j.packet.UdpPacket
+import java.lang.reflect.Method
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 将 Pcap4J 的 Packet 对象解码为 PacketMetadata。
@@ -18,6 +20,8 @@ import org.pcap4j.packet.UdpPacket
  * 返回 null 表示该包不是我们感兴趣的（非 IPv4、非 TCP/UDP、无 payload）。
  */
 class PacketDecoder {
+    private val timestampMethodCache = ConcurrentHashMap<Class<*>, Method?>()
+
     /**
      * 主解码方法。
      * 解码流程:
@@ -40,9 +44,8 @@ class PacketDecoder {
         val srcIp = ipPacket.header.srcAddr.hostAddress
         val dstIp = ipPacket.header.dstAddr.hostAddress
 
-        // 时间戳：使用当前时间
-        // 注意：Pcap4J 的 Packet 对象在某些情况下可能没有时间戳
-        val timestamp = Clock.System.now()
+        // 时间戳：优先使用包自带时间戳，缺失时使用当前时间
+        val timestamp = resolveTimestamp(packet)
 
         // L4 - TCP
         val tcpPacket = packet.get(TcpPacket::class.java)
@@ -94,5 +97,27 @@ class PacketDecoder {
         }
 
         return null  // 既不是 TCP 也不是 UDP
+    }
+
+    private fun resolveTimestamp(packet: Packet): Instant {
+        val method = timestampMethodCache.computeIfAbsent(packet.javaClass) { clazz ->
+            try {
+                clazz.getMethod("getTimestamp")
+            } catch (_: NoSuchMethodException) {
+                null
+            }
+        }
+
+        val timestamp = try {
+            method?.invoke(packet)
+        } catch (_: Exception) {
+            null
+        }
+
+        return when (timestamp) {
+            is java.sql.Timestamp -> Instant.fromEpochMilliseconds(timestamp.time)
+            is java.time.Instant -> Instant.fromEpochMilliseconds(timestamp.toEpochMilli())
+            else -> Clock.System.now()
+        }
     }
 }

@@ -33,6 +33,7 @@ class PacketCaptureEngine(
 
     private var handle: PcapHandle? = null
     @Volatile private var running = false
+    @Volatile private var offlineMode = false
     private var capturedCount = 0L
     private var droppedCount = 0L
 
@@ -45,6 +46,7 @@ class PacketCaptureEngine(
             logger.warn { "Capture engine already running" }
             return
         }
+        offlineMode = false
 
         try {
             val nif = Pcaps.getDevByName(config.interfaceName)
@@ -81,6 +83,7 @@ class PacketCaptureEngine(
             return
         }
 
+        offlineMode = true
         try {
             handle = Pcaps.openOffline(pcapFilePath)
             logger.info { "Offline capture started from file: $pcapFilePath" }
@@ -88,9 +91,7 @@ class PacketCaptureEngine(
             running = true
             scope.launch(Dispatchers.IO) {
                 captureLoop()
-                // 离线模式读完后关闭 channel
-                rawPacketChannel.close()
-                logger.info { "Offline capture completed. Channel closed." }
+                logger.info { "Offline capture completed." }
             }
         } catch (e: PcapNativeException) {
             logger.error(e) { "Failed to open pcap file: ${e.message}" }
@@ -129,6 +130,11 @@ class PacketCaptureEngine(
 
                 // getNextPacket() 返回 null 时表示超时，继续循环
                 if (packet == null) {
+                    if (offlineMode) {
+                        logger.info { "Offline capture reached end of file." }
+                        stop()
+                        return
+                    }
                     continue
                 }
 

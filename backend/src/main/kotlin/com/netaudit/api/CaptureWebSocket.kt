@@ -6,8 +6,8 @@ import io.ktor.websocket.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import com.netaudit.model.AuditEvent
+import com.netaudit.model.AppJson
 import com.netaudit.event.AuditEventBus
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -30,7 +30,7 @@ fun Route.captureWebSocket(eventBus: AuditEventBus) {
                     }
                     .collect { event: AuditEvent ->
                         try {
-                            val json = Json.encodeToString<AuditEvent>(event)
+                            val json = AppJson.encodeToString(event)
                             send(Frame.Text(json))
                         } catch (e: Exception) {
                             logger.error(e) { "Failed to send event to WebSocket client" }

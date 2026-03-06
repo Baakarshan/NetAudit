@@ -21,7 +21,7 @@ interface ProtocolParser {
     /**
      * 解析一次应用层交互。
      * 对于无状态协议（HTTP/DNS），每次调用可直接返回事件。
-     * 对于有状态协议（FTP/TELNET/SMTP/POP3），可能需要多次调��积累状态后才返回事件。
+     * 对于有状态协议（FTP/TELNET/SMTP/POP3），可能需要多次调用积累状态后才返回事件。
      *
      * @return 解析出的审计事件，如果当前 payload 不足以产生完整事件则返回 null
      */

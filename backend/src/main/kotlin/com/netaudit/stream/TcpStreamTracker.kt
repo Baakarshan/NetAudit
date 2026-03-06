@@ -2,6 +2,7 @@ package com.netaudit.stream
 
 import com.netaudit.model.*
 import com.netaudit.parser.ParserRegistry
+import com.netaudit.parser.ProtocolParser
 import com.netaudit.event.AuditEventBus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,9 @@ class TcpStreamTracker(
      * 调用时机: PacketDecoder 解码成功后、且为 TCP 包时。
      */
     suspend fun handleTcpPacket(metadata: PacketMetadata) {
+        val parser = registry.findByEitherPort(metadata.srcPort, metadata.dstPort)
+            ?: return  // 不关心的端口
+
         val key = StreamKey(
             metadata.srcIp, metadata.srcPort,
             metadata.dstIp, metadata.dstPort
@@ -58,7 +62,7 @@ class TcpStreamTracker(
         if (flags != null && (flags.fin || flags.rst)) {
             // 先处理残余 payload（如果有）
             if (metadata.payload.isNotEmpty()) {
-                processPayload(buffer, metadata, direction)
+                processPayload(buffer, metadata, direction, parser)
             }
             streams.remove(canonicalKey)
             logger.debug { "TCP stream closed: $canonicalKey (${if (flags.fin) "FIN" else "RST"})" }
@@ -67,13 +71,13 @@ class TcpStreamTracker(
 
         // 追加 payload
         if (metadata.payload.isNotEmpty()) {
-            processPayload(buffer, metadata, direction)
+            processPayload(buffer, metadata, direction, parser)
         }
     }
 
     /**
      * 处理 UDP 包。
-     * UDP 无需流重组，���接构造 StreamContext 调用 Parser。
+     * UDP 无需流重组，直接构造 StreamContext 调用 Parser。
      */
     suspend fun handleUdpPacket(metadata: PacketMetadata) {
         val parser = registry.findByEitherPort(metadata.srcPort, metadata.dstPort)
@@ -103,17 +107,14 @@ class TcpStreamTracker(
     private suspend fun processPayload(
         buffer: TcpStreamBuffer,
         metadata: PacketMetadata,
-        direction: Direction
+        direction: Direction,
+        parser: ProtocolParser
     ) {
         // 追加到 buffer
         when (direction) {
             Direction.CLIENT_TO_SERVER -> buffer.appendClientData(metadata.payload)
             Direction.SERVER_TO_CLIENT -> buffer.appendServerData(metadata.payload)
         }
-
-        // 查找 Parser
-        val parser = registry.findByEitherPort(metadata.srcPort, metadata.dstPort)
-            ?: return
 
         // 构造 StreamContext
         val context = StreamContext(
