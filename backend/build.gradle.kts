@@ -4,8 +4,7 @@ plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
     application
-    // Shadow plugin 暂时注释，等 Gradle 版本兼容后再启用
-    // id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.netaudit"
@@ -27,8 +26,9 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
 
     // Pcap4J - 网络包捕获
-    implementation("org.pcap4j:pcap4j-core:1.8.2")
-    implementation("org.pcap4j:pcap4j-packetfactory-static:1.8.2")
+    val pcap4jVersion = "1.8.4"
+    implementation("org.pcap4j:pcap4j-core:$pcap4jVersion")
+    implementation("org.pcap4j:pcap4j-packetfactory-static:$pcap4jVersion")
 
     // Exposed ORM
     val exposedVersion = "0.54.0"
@@ -84,8 +84,6 @@ kotlin {
     jvmToolchain(21)
 }
 
-// Shadow JAR 配置暂时注释
-/*
 tasks.shadowJar {
     archiveBaseName.set("netaudit")
     archiveClassifier.set("all")
@@ -95,4 +93,3 @@ tasks.shadowJar {
         attributes("Main-Class" to "com.netaudit.MainKt")
     }
 }
-*/

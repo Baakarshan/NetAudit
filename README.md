@@ -55,6 +55,10 @@ net-audit/
 └── CLAUDE.md             # 项目说明
 ```
 
+## 架构概览
+
+详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
 ## 快速开始
 
 ### 环境要求

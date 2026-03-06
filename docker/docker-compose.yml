@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-netaudit}
       POSTGRES_USER: ${POSTGRES_USER:-netaudit}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netaudit123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netaudit}
     ports:
       - "5432:5432"
     volumes:
@@ -24,7 +24,7 @@ services:
       DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME:-netaudit}
       DB_USER: ${DB_USER:-netaudit}
-      DB_PASSWORD: ${DB_PASSWORD:-netaudit123}
+      DB_PASSWORD: ${DB_PASSWORD:-netaudit}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
