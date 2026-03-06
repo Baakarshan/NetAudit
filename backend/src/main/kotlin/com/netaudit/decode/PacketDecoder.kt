@@ -10,6 +10,7 @@ import org.pcap4j.packet.EthernetPacket
 import org.pcap4j.packet.IpV4Packet
 import org.pcap4j.packet.TcpPacket
 import org.pcap4j.packet.UdpPacket
+import org.pcap4j.packet.namednumber.EtherType
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 
@@ -40,7 +41,18 @@ class PacketDecoder {
         val dstMac = ethPacket.header.dstAddr.toString()
 
         // L3 - IPv4
-        val ipPacket = packet.get(IpV4Packet::class.java) ?: return null
+        val ipPacket = packet.get(IpV4Packet::class.java) ?: run {
+            if (ethPacket.header.type != EtherType.IPV4) {
+                return null
+            }
+            val payload = ethPacket.payload ?: return null
+            val raw = payload.rawData ?: return null
+            try {
+                IpV4Packet.newPacket(raw, 0, raw.size)
+            } catch (_: Exception) {
+                null
+            }
+        } ?: return null
         val srcIp = ipPacket.header.srcAddr.hostAddress
         val dstIp = ipPacket.header.dstAddr.hostAddress
 

@@ -1,6 +1,7 @@
 package com.netaudit.model
 
 import kotlinx.datetime.Instant
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -25,6 +26,7 @@ sealed interface AuditEvent {
     val alertLevel: AlertLevel
 
     @Serializable
+    @SerialName("HTTP")
     data class HttpEvent(
         override val id: String,
         override val timestamp: Instant,
@@ -43,6 +45,7 @@ sealed interface AuditEvent {
     ) : AuditEvent
 
     @Serializable
+    @SerialName("FTP")
     data class FtpEvent(
         override val id: String,
         override val timestamp: Instant,
@@ -60,6 +63,7 @@ sealed interface AuditEvent {
     ) : AuditEvent
 
     @Serializable
+    @SerialName("TELNET")
     data class TelnetEvent(
         override val id: String,
         override val timestamp: Instant,
@@ -75,6 +79,7 @@ sealed interface AuditEvent {
     ) : AuditEvent
 
     @Serializable
+    @SerialName("DNS")
     data class DnsEvent(
         override val id: String,
         override val timestamp: Instant,
@@ -93,6 +98,7 @@ sealed interface AuditEvent {
     ) : AuditEvent
 
     @Serializable
+    @SerialName("SMTP")
     data class SmtpEvent(
         override val id: String,
         override val timestamp: Instant,
@@ -111,6 +117,7 @@ sealed interface AuditEvent {
     ) : AuditEvent
 
     @Serializable
+    @SerialName("POP3")
     data class Pop3Event(
         override val id: String,
         override val timestamp: Instant,
