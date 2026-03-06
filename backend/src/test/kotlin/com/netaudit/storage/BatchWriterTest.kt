@@ -29,14 +29,17 @@ class BatchWriterTest {
         )
         writer.start()
 
-        repeat(3) { i ->
-            eventBus.emitAudit(httpEvent("test-$i"))
+        try {
+            repeat(3) { i ->
+                eventBus.emitAudit(httpEvent("test-$i"))
+            }
+
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { mockRepo.saveBatch(match { it.size == 3 }) }
+        } finally {
+            writer.shutdown()
         }
-
-        advanceUntilIdle()
-
-        coVerify(exactly = 1) { mockRepo.saveBatch(match { it.size == 3 }) }
-        writer.shutdown()
     }
 
     @Test
@@ -54,15 +57,18 @@ class BatchWriterTest {
         )
         writer.start()
 
-        repeat(2) { i ->
-            eventBus.emitAudit(httpEvent("test-$i"))
+        try {
+            repeat(2) { i ->
+                eventBus.emitAudit(httpEvent("test-$i"))
+            }
+
+            advanceTimeBy(600)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { mockRepo.saveBatch(match { it.size == 2 }) }
+        } finally {
+            writer.shutdown()
         }
-
-        advanceTimeBy(600)
-        advanceUntilIdle()
-
-        coVerify(exactly = 1) { mockRepo.saveBatch(match { it.size == 2 }) }
-        writer.shutdown()
     }
 
     @Test
@@ -80,11 +86,14 @@ class BatchWriterTest {
         )
         writer.start()
 
-        advanceTimeBy(600)
-        advanceUntilIdle()
+        try {
+            advanceTimeBy(600)
+            advanceUntilIdle()
 
-        coVerify(exactly = 0) { mockRepo.saveBatch(any()) }
-        writer.shutdown()
+            coVerify(exactly = 0) { mockRepo.saveBatch(any()) }
+        } finally {
+            writer.shutdown()
+        }
     }
 
     private fun httpEvent(id: String): AuditEvent.HttpEvent =

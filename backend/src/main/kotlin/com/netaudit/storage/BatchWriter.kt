@@ -4,6 +4,7 @@ import com.netaudit.event.AuditEventBus
 import com.netaudit.model.AppJson
 import com.netaudit.model.AuditEvent
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -37,7 +38,7 @@ class BatchWriter(
             return
         }
 
-        collectJob = scope.launch {
+        collectJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             eventBus.auditEvents.collect { event ->
                 val shouldFlush = mutex.withLock {
                     buffer.add(event)
