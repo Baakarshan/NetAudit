@@ -6,8 +6,6 @@ import com.netaudit.model.ProtocolType
 import com.netaudit.storage.AlertRepository
 import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.tables.AlertsTable
-import com.netaudit.storage.util.toJavaOffsetDateTime
-import com.netaudit.storage.util.toKotlinxInstant
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.insert
@@ -19,7 +17,7 @@ class ExposedAlertRepository : AlertRepository {
     override suspend fun save(alert: AlertRecord) = DatabaseFactory.dbQuery {
         AlertsTable.insert { row ->
             row[AlertsTable.alertId] = alert.id
-            row[AlertsTable.timestamp] = alert.timestamp.toJavaOffsetDateTime()
+            row[AlertsTable.timestamp] = alert.timestamp
             row[AlertsTable.level] = alert.level.name
             row[AlertsTable.ruleName] = alert.ruleName
             row[AlertsTable.message] = alert.message
@@ -35,7 +33,7 @@ class ExposedAlertRepository : AlertRepository {
             .map { row ->
                 AlertRecord(
                     id = row[AlertsTable.alertId],
-                    timestamp = row[AlertsTable.timestamp].toKotlinxInstant(),
+                    timestamp = row[AlertsTable.timestamp],
                     level = AlertLevel.valueOf(row[AlertsTable.level]),
                     ruleName = row[AlertsTable.ruleName],
                     message = row[AlertsTable.message],

@@ -1,8 +1,8 @@
 package com.netaudit.storage.tables
 
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestampWithTimeZone
 import org.jetbrains.exposed.sql.kotlin.datetime.timestampWithTimeZone
-import org.jetbrains.exposed.sql.javatime.CurrentTimestampWithTimeZone
 
 /**
  * audit_logs 表 — 所有协议共用一张表，协议特有字段存 JSONB。

@@ -5,7 +5,6 @@ import com.netaudit.model.ProtocolType
 import com.netaudit.storage.AuditRepository
 import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.tables.AuditLogsTable
-import com.netaudit.storage.util.toJavaOffsetDateTime
 import kotlinx.datetime.Instant
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -66,10 +65,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
         DatabaseFactory.dbQuery {
             AuditLogsTable.selectAll()
                 .where {
-                    AuditLogsTable.capturedAt.between(
-                        start.toJavaOffsetDateTime(),
-                        end.toJavaOffsetDateTime()
-                    )
+                    AuditLogsTable.capturedAt.between(start, end)
                 }
                 .orderBy(AuditLogsTable.capturedAt, SortOrder.DESC)
                 .limit(size).offset((page * size).toLong())
@@ -104,7 +100,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
         row[AuditLogsTable.srcPort] = event.srcPort
         row[AuditLogsTable.dstPort] = event.dstPort
         row[AuditLogsTable.alertLevel] = event.alertLevel.name
-        row[AuditLogsTable.capturedAt] = event.timestamp.toJavaOffsetDateTime()
+        row[AuditLogsTable.capturedAt] = event.timestamp
         row[AuditLogsTable.details] = json.encodeToString(AuditEvent.serializer(), event)
     }
 
