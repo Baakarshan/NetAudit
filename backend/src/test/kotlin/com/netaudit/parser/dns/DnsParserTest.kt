@@ -53,7 +53,7 @@ class DnsParserTest {
     fun `test pointer compression response`() {
         val payload = buildDnsResponse("example.com", listOf("93.184.216.34"))
         val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
-        val event = parser.parse(context)
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
         assertNotNull(event)
         assertEquals("example.com", event.queryDomain)
     }
