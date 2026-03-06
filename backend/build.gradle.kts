@@ -26,7 +26,7 @@ dependencies {
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
 
     // Pcap4J - 网络包捕获
-    val pcap4jVersion = "1.8.4"
+    val pcap4jVersion = "1.8.2"
     implementation("org.pcap4j:pcap4j-core:$pcap4jVersion")
     implementation("org.pcap4j:pcap4j-packetfactory-static:$pcap4jVersion")
 
