@@ -5,6 +5,8 @@ import com.netaudit.model.AppJson
 import com.netaudit.model.AuditEvent
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -27,9 +29,15 @@ class BatchWriter(
     private val buffer = mutableListOf<AuditEvent>()
     private val retryCountMap = mutableMapOf<String, Int>()
     private val mutex = Mutex()
+    private var collectJob: Job? = null
+    private var flushJob: Job? = null
 
     fun start() {
-        scope.launch {
+        if (collectJob != null || flushJob != null) {
+            return
+        }
+
+        collectJob = scope.launch {
             eventBus.auditEvents.collect { event ->
                 val shouldFlush = mutex.withLock {
                     buffer.add(event)
@@ -41,7 +49,7 @@ class BatchWriter(
             }
         }
 
-        scope.launch {
+        flushJob = scope.launch {
             while (isActive) {
                 delay(flushIntervalMs)
                 flush()
@@ -53,7 +61,17 @@ class BatchWriter(
 
     suspend fun shutdown() {
         flush()
+        stop()
         logger.info { "BatchWriter shutdown complete" }
+    }
+
+    suspend fun stop() {
+        val currentCollectJob = collectJob
+        val currentFlushJob = flushJob
+        collectJob = null
+        flushJob = null
+        currentCollectJob?.cancelAndJoin()
+        currentFlushJob?.cancelAndJoin()
     }
 
     private suspend fun flush() {
