@@ -5,18 +5,19 @@ import com.netaudit.model.ProtocolType
 import com.netaudit.storage.AuditRepository
 import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.tables.AuditLogsTable
+import com.netaudit.storage.util.toJavaOffsetDateTime
 import kotlinx.datetime.Instant
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.statements.UpdateBuilder
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.batchInsert
-import org.jetbrains.exposed.sql.UpdateBuilder
 
 /**
  * AuditRepository 的 Exposed 实现。
@@ -27,6 +28,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
         AuditLogsTable.insert { row ->
             mapEventToRow(row, event)
         }
+        Unit
     }
 
     override suspend fun saveBatch(events: List<AuditEvent>) = DatabaseFactory.dbQuery {
@@ -39,7 +41,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
     override suspend fun findAll(page: Int, size: Int): List<AuditEvent> = DatabaseFactory.dbQuery {
         AuditLogsTable.selectAll()
             .orderBy(AuditLogsTable.capturedAt, SortOrder.DESC)
-            .limit(size).offset((page * size).toLong())
+            .limit(size, (page * size).toLong())
             .map { rowToEvent(it) }
     }
 
@@ -48,7 +50,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
             AuditLogsTable.selectAll()
                 .where { AuditLogsTable.protocol eq protocol.name }
                 .orderBy(AuditLogsTable.capturedAt, SortOrder.DESC)
-                .limit(size).offset((page * size).toLong())
+                .limit(size, (page * size).toLong())
                 .map { rowToEvent(it) }
         }
 
@@ -57,7 +59,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
             AuditLogsTable.selectAll()
                 .where { AuditLogsTable.srcIp eq srcIp }
                 .orderBy(AuditLogsTable.capturedAt, SortOrder.DESC)
-                .limit(size).offset((page * size).toLong())
+                .limit(size, (page * size).toLong())
                 .map { rowToEvent(it) }
         }
 
@@ -65,10 +67,13 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
         DatabaseFactory.dbQuery {
             AuditLogsTable.selectAll()
                 .where {
-                    AuditLogsTable.capturedAt.between(start, end)
+                    AuditLogsTable.capturedAt.between(
+                        start.toJavaOffsetDateTime(),
+                        end.toJavaOffsetDateTime()
+                    )
                 }
                 .orderBy(AuditLogsTable.capturedAt, SortOrder.DESC)
-                .limit(size).offset((page * size).toLong())
+                .limit(size, (page * size).toLong())
                 .map { rowToEvent(it) }
         }
 
@@ -100,7 +105,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
         row[AuditLogsTable.srcPort] = event.srcPort
         row[AuditLogsTable.dstPort] = event.dstPort
         row[AuditLogsTable.alertLevel] = event.alertLevel.name
-        row[AuditLogsTable.capturedAt] = event.timestamp
+        row[AuditLogsTable.capturedAt] = event.timestamp.toJavaOffsetDateTime()
         row[AuditLogsTable.details] = json.encodeToString(AuditEvent.serializer(), event)
     }
 
