@@ -11,14 +11,24 @@ import com.netaudit.model.ProtocolType
 import com.netaudit.parser.ParserRegistry
 import com.netaudit.storage.AlertRepository
 import com.netaudit.storage.AuditRepository
+import com.netaudit.alert.AlertEngine
+import com.netaudit.pipeline.AuditPipeline
+import com.netaudit.storage.BatchWriter
 import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.testApplication
+import io.mockk.every
+import io.mockk.Runs
+import io.mockk.just
+import io.mockk.mockkConstructor
+import io.mockk.unmockkAll
+import io.mockk.verify
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MainTest {
@@ -32,6 +42,21 @@ class MainTest {
         System.clearProperty("netaudit.disableMain")
         runServer(arrayOf("arg")) { called = true }
         assertTrue(called)
+    }
+
+    @Test
+    fun `main delegates to runServer`() {
+        System.setProperty("netaudit.disableMain", "true")
+        main(emptyArray())
+        System.clearProperty("netaudit.disableMain")
+    }
+
+    @Test
+    fun `main logger is initialized`() {
+        val clazz = Class.forName("com.netaudit.MainKt")
+        val field = clazz.getDeclaredField("logger")
+        field.isAccessible = true
+        assertNotNull(field.get(null))
     }
 
     @Test
@@ -96,6 +121,86 @@ class MainTest {
 
         val response = client.get("/health")
         assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `module default starters invoked when enabled`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "database.url" to "jdbc:h2:mem:defaults2;DB_CLOSE_DELAY=-1",
+                "database.driver" to "org.h2.Driver",
+                "database.user" to "sa",
+                "database.password" to "",
+                "database.maxPoolSize" to "2",
+                "capture.interface" to "netaudit-test0",
+                "capture.promiscuous" to "false",
+                "capture.snapshotLength" to "65536",
+                "capture.readTimeout" to "100",
+                "capture.channelBufferSize" to "16",
+                "alert.enabled" to "true"
+            )
+        }
+
+        mockkConstructor(BatchWriter::class)
+        mockkConstructor(AuditPipeline::class)
+        mockkConstructor(AlertEngine::class)
+        every { anyConstructed<BatchWriter>().start() } just Runs
+        every { anyConstructed<AuditPipeline>().start() } just Runs
+        every { anyConstructed<AlertEngine>().start() } just Runs
+
+        try {
+            application {
+                module(startBackground = true)
+            }
+
+            startApplication()
+
+            verify { anyConstructed<BatchWriter>().start() }
+            verify { anyConstructed<AuditPipeline>().start() }
+            verify { anyConstructed<AlertEngine>().start() }
+        } finally {
+            unmockkAll()
+        }
+    }
+
+    @Test
+    fun `module uses default startBackground value`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "database.url" to "jdbc:h2:mem:defaults3;DB_CLOSE_DELAY=-1",
+                "database.driver" to "org.h2.Driver",
+                "database.user" to "sa",
+                "database.password" to "",
+                "database.maxPoolSize" to "2",
+                "capture.interface" to "netaudit-test1",
+                "capture.promiscuous" to "false",
+                "capture.snapshotLength" to "65536",
+                "capture.readTimeout" to "100",
+                "capture.channelBufferSize" to "16",
+                "alert.enabled" to "true"
+            )
+        }
+
+        mockkConstructor(BatchWriter::class)
+        mockkConstructor(AuditPipeline::class)
+        mockkConstructor(AlertEngine::class)
+        every { anyConstructed<BatchWriter>().start() } just Runs
+        every { anyConstructed<AuditPipeline>().start() } just Runs
+        every { anyConstructed<AlertEngine>().start() } just Runs
+
+        try {
+            application {
+                module()
+            }
+
+            startApplication()
+
+            verify { anyConstructed<BatchWriter>().start() }
+            verify { anyConstructed<AuditPipeline>().start() }
+            verify { anyConstructed<AlertEngine>().start() }
+        } finally {
+            unmockkAll()
+        }
     }
 
     @Test
