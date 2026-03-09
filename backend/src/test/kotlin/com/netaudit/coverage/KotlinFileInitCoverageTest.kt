@@ -20,7 +20,13 @@ class KotlinFileInitCoverageTest {
         )
 
         classes.forEach { className ->
-            Class.forName(className)
+            val clazz = Class.forName(className)
+            try {
+                val field = clazz.getDeclaredField("logger")
+                field.isAccessible = true
+                field.get(null)?.toString()
+            } catch (_: NoSuchFieldException) {
+            }
         }
     }
 }
