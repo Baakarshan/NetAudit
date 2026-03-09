@@ -76,4 +76,5 @@ temp/
 
 # Project docs (not for version control)
 specs/
-CLAUDE.md
+CLAUDE.md.kotlin/
+**/*.salive
