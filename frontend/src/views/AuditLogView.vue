@@ -5,7 +5,11 @@
     <el-card class="table-card">
       <el-table :data="logs" stripe @row-click="onRowClick">
         <el-table-column prop="timestamp" label="时间" width="180" />
-        <el-table-column prop="protocol" label="协议" width="120" />
+        <el-table-column label="协议" width="120">
+          <template #default="scope">
+            {{ rowProtocol(scope.row) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="srcIp" label="源IP" width="160" />
         <el-table-column prop="dstIp" label="目标IP" width="160" />
         <el-table-column label="摘要">
@@ -41,6 +45,8 @@ const logs = ref<AuditEvent[]>([])
 const pageSize = 20
 const total = ref(0)
 const currentPage = ref(1)
+
+const rowProtocol = (row: unknown) => (row as any)?.protocol ?? 'UNKNOWN'
 
 const drawerVisible = ref(false)
 const selectedEvent = ref<AuditEvent | null>(null)
@@ -78,22 +84,23 @@ const onRowClick = (row: AuditEvent) => {
   drawerVisible.value = true
 }
 
-const summary = (event: AuditEvent) => {
-  switch (event.protocol) {
+const summary = (event: unknown) => {
+  const e = event as any
+  switch (e?.protocol) {
     case 'HTTP':
-      return `${event.method} ${event.url}`
+      return `${e.method} ${e.url}`
     case 'FTP':
-      return `${event.command} ${event.argument || ''}`.trim()
+      return `${e.command} ${e.argument || ''}`.trim()
     case 'TELNET':
-      return event.commandLine
+      return e.commandLine
     case 'DNS':
-      return event.queryDomain
+      return e.queryDomain
     case 'SMTP':
-      return event.subject || '邮件发送'
+      return e.subject || '邮件发送'
     case 'POP3':
-      return event.command
+      return e.command
     default:
-      return event.protocol
+      return e?.protocol ?? ''
   }
 }
 

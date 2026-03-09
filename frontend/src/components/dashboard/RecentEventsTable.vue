@@ -5,8 +5,8 @@
       <el-table-column prop="timestamp" label="时间" width="180" />
       <el-table-column label="协议" width="110">
         <template #default="scope">
-          <el-tag :style="{ background: protocolColor(scope.row.protocol), color: '#fff', border: 'none' }">
-            {{ scope.row.protocol }}
+          <el-tag :style="{ background: protocolColor(rowProtocol(scope.row)), color: '#fff', border: 'none' }">
+            {{ rowProtocol(scope.row) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -30,24 +30,27 @@ const props = defineProps<{ events: AuditEvent[] }>()
 
 const rows = computed(() => props.events.slice(0, 20))
 
+const rowProtocol = (row: unknown) => (row as any)?.protocol ?? 'UNKNOWN'
+
 const protocolColor = (protocol: string) => PROTOCOL_COLORS[protocol] || '#64748b'
 
-const summary = (event: AuditEvent) => {
-  switch (event.protocol) {
+const summary = (event: unknown) => {
+  const e = event as any
+  switch (e?.protocol) {
     case 'HTTP':
-      return `${event.method} ${event.url}`
+      return `${e.method} ${e.url}`
     case 'FTP':
-      return `${event.command} ${event.argument || ''}`.trim()
+      return `${e.command} ${e.argument || ''}`.trim()
     case 'TELNET':
-      return event.commandLine
+      return e.commandLine
     case 'DNS':
-      return event.queryDomain
+      return e.queryDomain
     case 'SMTP':
-      return event.subject || '邮件发送'
+      return e.subject || '邮件发送'
     case 'POP3':
-      return event.command
+      return e.command
     default:
-      return event.protocol
+      return e?.protocol ?? ''
   }
 }
 </script>
