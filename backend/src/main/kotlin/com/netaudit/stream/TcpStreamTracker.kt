@@ -59,7 +59,7 @@ class TcpStreamTracker(
             TcpStreamBuffer(canonicalKey, nowProvider)
         }
 
-        // 判断方向
+        // 判断方向：canonicalKey 作为“客户端 → 服务端”基准
         val direction = if (key == canonicalKey)
             Direction.CLIENT_TO_SERVER else Direction.SERVER_TO_CLIENT
 
@@ -89,6 +89,7 @@ class TcpStreamTracker(
         val parser = registry.findByEitherPort(metadata.srcPort, metadata.dstPort)
             ?: return  // 不关心的端口
 
+        // 以目的端口是否为已注册服务端端口来判断方向
         val direction = if (registry.findByPort(metadata.dstPort) != null)
             Direction.CLIENT_TO_SERVER else Direction.SERVER_TO_CLIENT
 
@@ -122,7 +123,7 @@ class TcpStreamTracker(
             Direction.SERVER_TO_CLIENT -> buffer.appendServerData(metadata.payload)
         }
 
-        // 构造 StreamContext
+        // sessionState 由 TcpStreamBuffer 持有，用于协议解析的会话态
         val context = StreamContext(
             key = buffer.key,
             metadata = metadata,
@@ -148,6 +149,7 @@ class TcpStreamTracker(
     override fun startCleanupJob(): Job {
         return scope.launch {
             while (true) {
+                // 先检查取消，保证 stop 时能及时退出
                 coroutineContext.ensureActive()
                 delay(cleanupIntervalMs)
                 val before = streams.size

@@ -17,6 +17,7 @@ import org.jetbrains.exposed.sql.selectAll
 
 class ExposedAlertRepository : AlertRepository {
     override suspend fun save(alert: AlertRecord) {
+        // 测试用挂起开关，便于覆盖协程让出与取消路径
         if (DatabaseFactory.forceSuspend) {
             yield()
         }

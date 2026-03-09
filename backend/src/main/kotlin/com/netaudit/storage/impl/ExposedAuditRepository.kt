@@ -25,6 +25,7 @@ import org.jetbrains.exposed.sql.batchInsert
  */
 class ExposedAuditRepository(private val json: Json) : AuditRepository {
     override suspend fun save(event: AuditEvent) {
+        // 测试场景触发一次挂起，确保协程路径覆盖
         if (DatabaseFactory.forceSuspend) {
             yield()
         }
@@ -37,6 +38,7 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
     }
 
     override suspend fun saveBatch(events: List<AuditEvent>) {
+        // 测试场景触发一次挂起，确保协程路径覆盖
         if (DatabaseFactory.forceSuspend) {
             yield()
         }

@@ -43,6 +43,7 @@ class PacketDecoder : PacketDecoderLike {
         val dstMac = ethPacket.header.dstAddr.toString()
 
         // L3 - IPv4
+        // 优先走 Pcap4J 已解析的 IPv4 包；失败时再从 payload/raw 做兜底解析
         val ipPacket = (ethPacket.payload as? IpV4Packet)
             ?: packet.get(IpV4Packet::class.java)
             ?: parseIpFromPayload(ethPacket)
@@ -110,6 +111,7 @@ class PacketDecoder : PacketDecoderLike {
         if (ethPacket.header.type != EtherType.IPV4) {
             return null
         }
+        // 有些报文会把 IPv4 放在 payload 的 rawData 中
         val payload = ethPacket.payload ?: return null
         val raw = payload.rawData ?: return null
         return try {
@@ -123,6 +125,7 @@ class PacketDecoder : PacketDecoderLike {
         if (ethPacket.header.type != EtherType.IPV4) {
             return null
         }
+        // 从以太帧原始字节中跳过 14 字节头部进行解析
         val raw = ethPacket.rawData ?: return null
         val headerSize = 14 // Ethernet header length (no VLAN)
         if (raw.size <= headerSize) {
@@ -136,6 +139,7 @@ class PacketDecoder : PacketDecoderLike {
     }
 
     private fun resolveTimestamp(packet: Packet): Instant {
+        // 通过反射读取可能存在的 getTimestamp()，避免强依赖具体 Packet 实现
         val method = timestampMethodCache.computeIfAbsent(packet.javaClass) { clazz ->
             try {
                 clazz.getMethod("getTimestamp")

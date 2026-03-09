@@ -23,6 +23,7 @@ private val logger = KotlinLogging.logger {}
  */
 object DatabaseFactory {
     private lateinit var dataSource: HikariDataSource
+    // 测试开关：强制在 dbQuery 中挂起一次，补齐协程分支覆盖
     internal var forceSuspend: Boolean = false
 
     /**
@@ -86,6 +87,7 @@ object DatabaseFactory {
      */
     suspend fun <T> dbQuery(block: suspend () -> T): T =
         newSuspendedTransaction(Dispatchers.IO) {
+            // 仅测试场景使用，避免生产逻辑无意义挂起
             if (forceSuspend) {
                 yield()
             }

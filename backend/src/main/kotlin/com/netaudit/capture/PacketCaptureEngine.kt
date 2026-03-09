@@ -39,6 +39,7 @@ class PacketCaptureEngine(
     @Volatile private var offlineMode = false
     private var capturedCount = 0L
     private var droppedCount = 0L
+    // 仅用于测试注入异常/覆盖边界，不参与业务逻辑
     internal var afterSendHook: ((Packet) -> Unit)? = null
 
     /**
@@ -140,6 +141,7 @@ class PacketCaptureEngine(
 
                 // 使用 trySend 避免阻塞抓包线程
                 val result = rawPacketChannel.trySend(packet)
+                // 记录背压丢包数量，便于监控与告警
                 if (result.isFailure) {
                     droppedCount++
                 }

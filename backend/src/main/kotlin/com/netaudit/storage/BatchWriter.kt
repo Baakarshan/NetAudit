@@ -35,11 +35,13 @@ class BatchWriter(
     private var flushJob: Job? = null
 
     fun start() {
+        // 避免重复启动导致多条消费/flush 协程
         if (collectJob != null || flushJob != null) {
             return
         }
 
         collectJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            // 立即开始消费，减少启动窗口期丢事件风险
             eventBus.auditEvents.collect { event ->
                 val shouldFlush = mutex.withLock {
                     buffer.add(event)
@@ -54,6 +56,7 @@ class BatchWriter(
         flushJob = scope.launch {
             try {
                 while (true) {
+                    // 取消优先，避免 delay 后残留一次 flush
                     coroutineContext.ensureActive()
                     delay(flushIntervalMs)
                     flush()
@@ -96,6 +99,7 @@ class BatchWriter(
         } catch (e: Exception) {
             logger.error(e) { "Failed to flush ${batch.size} events: ${e.message}" }
 
+            // 使用批次首条事件作为重试计数键，保证同一批次退避一致
             val firstEventId = batch.firstOrNull()?.id ?: return
             val retryCount = retryCountMap.getOrDefault(firstEventId, 0)
 
