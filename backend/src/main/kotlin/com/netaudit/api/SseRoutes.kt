@@ -20,7 +20,9 @@ private val logger = KotlinLogging.logger {}
 
 fun Route.sseRoutes(
     auditEvents: Flow<AuditEvent>,
-    alertEvents: Flow<AlertRecord>
+    alertEvents: Flow<AlertRecord>,
+    auditEncoder: (AuditEvent) -> String = { AppJson.encodeToString(it) },
+    alertEncoder: (AlertRecord) -> String = { AppJson.encodeToString(it) }
 ) {
     get("/api/sse/events") {
         call.response.cacheControl(CacheControl.NoCache(null))
@@ -36,7 +38,7 @@ fun Route.sseRoutes(
                     launch {
                         try {
                             auditEvents.collect { event ->
-                                val json = AppJson.encodeToString<AuditEvent>(event)
+                                val json = auditEncoder(event)
                                 write(sseEvent("audit", json))
                                 flush()
                             }
@@ -48,7 +50,7 @@ fun Route.sseRoutes(
                     launch {
                         try {
                             alertEvents.collect { alert ->
-                                val json = AppJson.encodeToString(alert)
+                                val json = alertEncoder(alert)
                                 write(sseEvent("alert", json))
                                 flush()
                             }

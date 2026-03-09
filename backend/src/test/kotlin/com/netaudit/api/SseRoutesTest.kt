@@ -9,6 +9,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.datetime.Clock
 import kotlin.test.Test
@@ -32,6 +33,36 @@ class SseRoutesTest {
 
         assertTrue(body.contains(": connected"))
         assertTrue(body.contains("event: audit"))
+        assertTrue(body.contains("event: alert"))
+    }
+
+    @Test
+    fun `sse handles stream and encode errors`() = testApplication {
+        environment { config = MapApplicationConfig("ktor.application.modules.size" to "0") }
+        val auditEvents = flow {
+            emit(sampleHttpEvent())
+            throw IllegalStateException("audit boom")
+        }
+        val alertEvents = flow {
+            emit(sampleAlert())
+            throw IllegalStateException("alert boom")
+        }
+
+        application {
+            routing {
+                sseRoutes(
+                    auditEvents = auditEvents,
+                    alertEvents = alertEvents,
+                    auditEncoder = { _ -> throw IllegalArgumentException("encode failed") },
+                    alertEncoder = { it.id }
+                )
+            }
+        }
+
+        val response = client.get("/api/sse/events")
+        val body = response.bodyAsText()
+
+        assertTrue(body.contains(": connected"))
         assertTrue(body.contains("event: alert"))
     }
 
