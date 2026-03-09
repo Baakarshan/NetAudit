@@ -45,6 +45,28 @@ class PcapPacketSourceFactoryTest {
     }
 
     @Test
+    fun `openLive uses non-promiscuous mode when disabled`() {
+        mockkStatic(Pcaps::class)
+        val handle = mockk<PcapHandle>(relaxed = true)
+        val nif = mockk<PcapNetworkInterface>()
+        every { Pcaps.getDevByName("eth0") } returns nif
+        every { nif.openLive(64, PromiscuousMode.NONPROMISCUOUS, 10) } returns handle
+
+        val config = CaptureConfig(
+            interfaceName = "eth0",
+            promiscuous = false,
+            snapshotLength = 64,
+            readTimeoutMs = 10,
+            channelBufferSize = 1
+        )
+        val source = PcapPacketSourceFactory.openLive(config)
+        source.close()
+
+        verify { nif.openLive(64, PromiscuousMode.NONPROMISCUOUS, 10) }
+        verify { handle.close() }
+    }
+
+    @Test
     fun `openLive throws when interface not found`() {
         mockkStatic(Pcaps::class)
         every { Pcaps.getDevByName("missing0") } returns null
