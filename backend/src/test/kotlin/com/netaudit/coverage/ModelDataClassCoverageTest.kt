@@ -74,6 +74,15 @@ class ModelDataClassCoverageTest {
             direction = Direction.CLIENT_TO_SERVER
         )
         assertEquals("telnet-1", telnet.component1())
+        assertEquals(ts, telnet.component2())
+        assertEquals("1.1.1.1", telnet.component3())
+        assertEquals("2.2.2.2", telnet.component4())
+        assertEquals(23, telnet.component5())
+        assertEquals(1002, telnet.component6())
+        assertEquals(ProtocolType.TELNET, telnet.component7())
+        assertEquals(AlertLevel.INFO, telnet.component8())
+        assertEquals("root", telnet.component9())
+        assertEquals("whoami", telnet.component10())
         assertEquals(Direction.CLIENT_TO_SERVER, telnet.component11())
         assertEquals(telnet, telnet.copy())
 
@@ -92,8 +101,19 @@ class ModelDataClassCoverageTest {
             responseTtl = 60
         )
         assertEquals("dns-1", dns.component1())
+        assertEquals(ts, dns.component2())
+        assertEquals("1.1.1.1", dns.component3())
+        assertEquals("8.8.8.8", dns.component4())
+        assertEquals(1003, dns.component5())
+        assertEquals(53, dns.component6())
+        assertEquals(ProtocolType.DNS, dns.component7())
+        assertEquals(AlertLevel.INFO, dns.component8())
         assertEquals(1, dns.component9())
+        assertEquals("example.com", dns.component10())
+        assertEquals("A", dns.component11())
         assertEquals(true, dns.component12())
+        assertEquals(listOf("93.184.216.34"), dns.component13())
+        assertEquals(60, dns.component14())
         assertEquals(dns, dns.copy())
 
         val smtp = AuditEvent.SmtpEvent(
@@ -111,7 +131,18 @@ class ModelDataClassCoverageTest {
             stage = "DATA"
         )
         assertEquals("smtp-1", smtp.component1())
+        assertEquals(ts, smtp.component2())
+        assertEquals("1.1.1.1", smtp.component3())
+        assertEquals("2.2.2.2", smtp.component4())
+        assertEquals(1004, smtp.component5())
+        assertEquals(25, smtp.component6())
+        assertEquals(ProtocolType.SMTP, smtp.component7())
+        assertEquals(AlertLevel.INFO, smtp.component8())
         assertEquals("alice@example.com", smtp.component9())
+        assertEquals(listOf("bob@example.com"), smtp.component10())
+        assertEquals("hi", smtp.component11())
+        assertEquals(listOf("a.txt"), smtp.component12())
+        assertEquals(listOf(10), smtp.component13())
         assertEquals("DATA", smtp.component14())
         assertEquals(smtp, smtp.copy())
 
@@ -132,7 +163,20 @@ class ModelDataClassCoverageTest {
             mailSize = 100
         )
         assertEquals("pop3-1", pop3.component1())
+        assertEquals(ts, pop3.component2())
+        assertEquals("1.1.1.1", pop3.component3())
+        assertEquals("2.2.2.2", pop3.component4())
+        assertEquals(110, pop3.component5())
+        assertEquals(1005, pop3.component6())
+        assertEquals(ProtocolType.POP3, pop3.component7())
+        assertEquals(AlertLevel.INFO, pop3.component8())
         assertEquals("alice", pop3.component9())
+        assertEquals("LIST", pop3.component10())
+        assertEquals("a@example.com", pop3.component11())
+        assertEquals(listOf("b@example.com"), pop3.component12())
+        assertEquals("sub", pop3.component13())
+        assertEquals(listOf("b.pdf"), pop3.component14())
+        assertEquals(listOf(20), pop3.component15())
         assertEquals(100, pop3.component16())
         assertEquals(pop3, pop3.copy())
     }
@@ -146,6 +190,7 @@ class ModelDataClassCoverageTest {
         assertEquals(false, flags.component3())
         assertEquals(false, flags.component4())
         assertEquals(true, flags.component5())
+        assertEquals(true, flags.psh)
         assertNotEquals(flags, flags.copy(psh = false))
 
         val metadata = PacketMetadata(
@@ -174,6 +219,11 @@ class ModelDataClassCoverageTest {
         assertEquals(1L, metadata.component10())
         assertEquals(2L, metadata.component11())
         assertEquals(3, metadata.component12().size)
+        assertEquals("aa", metadata.srcMac)
+        assertEquals("bb", metadata.dstMac)
+        assertEquals(1L, metadata.seqNumber)
+        assertEquals(2L, metadata.ackNumber)
+        assertEquals(metadata, metadata.copy(srcMac = "aa"))
         assertTrue(metadata.toString().contains("PacketMetadata"))
     }
 
@@ -206,6 +256,8 @@ class ModelDataClassCoverageTest {
         assertEquals(20, context.dstPort)
         assertEquals(ts, context.timestamp)
         assertEquals("hi", context.payloadAsText())
+        assertEquals(Direction.CLIENT_TO_SERVER, context.direction)
+        assertTrue(context.sessionState.isEmpty())
 
         val alert = AlertRecord(
             id = "alert-1",

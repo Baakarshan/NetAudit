@@ -43,9 +43,12 @@ class ModelAndConfigCoverageTest {
         assertTrue(TransportProtocol.entries.isNotEmpty())
         assertEquals(TransportProtocol.TCP, TransportProtocol.valueOf("TCP"))
         assertEquals(TransportProtocol.TCP, TransportProtocol.fromName("TCP"))
+        assertEquals(TransportProtocol.UDP, TransportProtocol.fromName("UDP"))
         val companion = TransportProtocol.Companion
         assertEquals(TransportProtocol.TCP, companion.fromName("TCP"))
+        assertEquals(TransportProtocol.UDP, companion.fromName("UDP"))
         assertTrue(companion.toString().isNotBlank())
+        assertNotNull(TransportProtocol.serializer())
         assertTrue(Direction.entries.isNotEmpty())
         assertEquals(Direction.CLIENT_TO_SERVER, Direction.valueOf("CLIENT_TO_SERVER"))
 
@@ -208,6 +211,11 @@ class ModelAndConfigCoverageTest {
             description = "desc",
             level = AlertLevel.WARN
         ) { event -> event is AuditEvent.HttpEvent }
+        assertEquals("rule-1", rule.component1())
+        assertEquals("test", rule.component2())
+        assertEquals("desc", rule.component3())
+        assertEquals(AlertLevel.WARN, rule.component4())
+        val condition = rule.component5()
         val event = AuditEvent.HttpEvent(
             id = "http-2",
             timestamp = Instant.parse("2024-01-01T00:00:03Z"),
@@ -220,6 +228,7 @@ class ModelAndConfigCoverageTest {
             host = "example.com"
         )
         assertTrue(rule.condition(event))
+        assertTrue(condition(event))
 
         val record = AlertRecord(
             id = "alert-1",

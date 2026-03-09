@@ -6,6 +6,7 @@ class KotlinFileInitCoverageTest {
     @Test
     fun `load kotlin file classes`() {
         val classes = listOf(
+            "com.netaudit.MainKt",
             "com.netaudit.pipeline.AuditPipelineKt",
             "com.netaudit.parser.http.HttpParserKt",
             "com.netaudit.stream.TcpStreamTrackerKt",
@@ -16,7 +17,10 @@ class KotlinFileInitCoverageTest {
             "com.netaudit.storage.BatchWriterKt",
             "com.netaudit.storage.DatabaseFactoryKt",
             "com.netaudit.capture.PacketCaptureEngineKt",
-            "com.netaudit.parser.ParserRegistryKt"
+            "com.netaudit.parser.ParserRegistryKt",
+            "com.netaudit.api.CaptureWebSocketKt",
+            "com.netaudit.api.SseRoutesKt",
+            "com.netaudit.api.KtorPluginsKt"
         )
 
         classes.forEach { className ->
@@ -27,6 +31,14 @@ class KotlinFileInitCoverageTest {
                 field.get(null)?.toString()
             } catch (_: NoSuchFieldException) {
             }
+
+            val lambdaMarker = "logger${'$'}lambda${'$'}"
+            clazz.declaredMethods
+                .filter { it.name.contains(lambdaMarker) && it.parameterCount == 0 }
+                .forEach { method ->
+                    method.isAccessible = true
+                    method.invoke(null)
+                }
         }
     }
 }
