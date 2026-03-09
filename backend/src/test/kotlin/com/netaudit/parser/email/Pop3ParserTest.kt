@@ -65,6 +65,67 @@ class Pop3ParserTest {
         assertTrue(event.attachmentNames.isNotEmpty())
     }
 
+    @Test
+    fun `test blank payload`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext(" ", Direction.CLIENT_TO_SERVER, sessionState))
+        assertEquals(null, event)
+    }
+
+    @Test
+    fun `test quit and list commands`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val quitEvent = parser.parse(buildContext("QUIT\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+            as com.netaudit.model.AuditEvent.Pop3Event
+        assertEquals("QUIT", quitEvent.command)
+
+        val listEvent = parser.parse(buildContext("LIST\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+            as com.netaudit.model.AuditEvent.Pop3Event
+        assertEquals("LIST", listEvent.command)
+    }
+
+    @Test
+    fun `test unknown command`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("NOOP\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+        assertEquals(null, event)
+    }
+
+    @Test
+    fun `test response without retr mode`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("+OK\r\n", Direction.SERVER_TO_CLIENT, sessionState))
+        assertEquals(null, event)
+    }
+
+    @Test
+    fun `test response without end marker`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("RETR 1\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+
+        val response = "+OK\r\nFrom: a@test.com\r\n"
+        val event = parser.parse(buildContext(response, Direction.SERVER_TO_CLIENT, sessionState))
+        assertEquals(null, event)
+    }
+
+    @Test
+    fun `test response with lf end marker`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("RETR 1\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+
+        val response =
+            "+OK\n" +
+                "From: a@test.com\n" +
+                "Subject: Hi\n\n" +
+                "Body\n" +
+                ".\n"
+
+        val event = parser.parse(buildContext(response, Direction.SERVER_TO_CLIENT, sessionState))
+            as com.netaudit.model.AuditEvent.Pop3Event
+        assertEquals("Hi", event.subject)
+        assertTrue(event.mailSize != null)
+    }
+
     private fun buildContext(
         payload: String,
         direction: Direction,
