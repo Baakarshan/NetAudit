@@ -8,10 +8,11 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlin.coroutines.coroutineContext
 
 private val logger = KotlinLogging.logger {}
 
@@ -146,7 +147,8 @@ class TcpStreamTracker(
      */
     override fun startCleanupJob(): Job {
         return scope.launch {
-            while (isActive) {
+            while (true) {
+                coroutineContext.ensureActive()
                 delay(cleanupIntervalMs)
                 val before = streams.size
                 streams.entries.removeAll { it.value.isExpired(streamTimeoutSeconds) }
