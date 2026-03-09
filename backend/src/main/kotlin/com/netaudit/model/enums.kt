@@ -14,7 +14,11 @@ enum class AlertLevel {
 
 @Serializable
 enum class TransportProtocol {
-    TCP, UDP
+    TCP, UDP;
+
+    companion object {
+        fun fromName(value: String): TransportProtocol = valueOf(value)
+    }
 }
 
 @Serializable
