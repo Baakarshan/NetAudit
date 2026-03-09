@@ -99,6 +99,106 @@ class HttpParserTest {
     }
 
     @Test
+    fun `test invalid request line`() {
+        val context = buildContext("GET\r\n\r\n")
+        val event = parser.parse(context)
+        assertNull(event)
+    }
+
+    @Test
+    fun `test invalid http method`() {
+        val context = buildContext("FOO / HTTP/1.1\r\n\r\n")
+        val event = parser.parse(context)
+        assertNull(event)
+    }
+
+    @Test
+    fun `test request uses dst host and absolute url`() {
+        val payload = "GET http://example.com/path HTTP/1.1\r\nUser-Agent: test-agent\r\n\r\n"
+        val context = buildContext(payload, dstIp = "9.9.9.9")
+
+        val event = parser.parse(context) as? AuditEvent.HttpEvent
+        assertNotNull(event)
+        assertEquals("http://example.com/path", event.url)
+        assertEquals("9.9.9.9", event.host)
+        assertEquals("test-agent", event.userAgent)
+    }
+
+    @Test
+    fun `test headers stop at blank line`() {
+        val payload = "GET / HTTP/1.1\r\nHost: example.com\r\n\r\nUser-Agent: later\r\n\r\n"
+        val context = buildContext(payload)
+
+        val event = parser.parse(context) as? AuditEvent.HttpEvent
+        assertNotNull(event)
+        assertEquals("example.com", event.host)
+        assertNull(event.userAgent)
+    }
+
+    @Test
+    fun `test response invalid status line`() {
+        val context = buildContext(
+            payload = "NOTHTTP 200 OK\r\n\r\n",
+            direction = Direction.SERVER_TO_CLIENT
+        )
+        val event = parser.parse(context)
+        assertNull(event)
+    }
+
+    @Test
+    fun `test response invalid status code`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "http.lastMethod" to "GET",
+            "http.lastUrl" to "http://example.com",
+            "http.lastHost" to "example.com"
+        )
+        val context = buildContext(
+            payload = "HTTP/1.1 abc OK\r\n\r\n",
+            direction = Direction.SERVER_TO_CLIENT,
+            sessionState = sessionState
+        )
+        val event = parser.parse(context)
+        assertNull(event)
+    }
+
+    @Test
+    fun `test response uses session fallback and clears`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "http.lastMethod" to "GET",
+            "http.lastUrl" to "http://example.com",
+            "http.lastHost" to "example.com",
+            "http.lastUserAgent" to "ua",
+            "http.lastContentType" to "text/plain"
+        )
+        val context = buildContext(
+            payload = "HTTP/1.1 200 OK\r\n\r\n",
+            direction = Direction.SERVER_TO_CLIENT,
+            srcIp = "93.184.216.34",
+            dstIp = "192.168.1.100",
+            srcPort = 80,
+            dstPort = 54321,
+            sessionState = sessionState
+        )
+
+        val event = parser.parse(context) as? AuditEvent.HttpEvent
+        assertNotNull(event)
+        assertEquals("text/plain", event.contentType)
+        assertEquals("ua", event.userAgent)
+        assertTrue(sessionState.isEmpty())
+    }
+
+    @Test
+    fun `test response requires session`() {
+        val context = buildContext(
+            payload = "HTTP/1.1 200 OK\r\n\r\n",
+            direction = Direction.SERVER_TO_CLIENT,
+            sessionState = mutableMapOf("http.lastUrl" to "http://example.com")
+        )
+        val event = parser.parse(context)
+        assertNull(event)
+    }
+
+    @Test
     fun `test ports include 8080`() {
         assertTrue(parser.ports.contains(8080))
     }
