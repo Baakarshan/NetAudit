@@ -7,6 +7,8 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
@@ -42,17 +44,19 @@ class SseRoutesTest {
             statusCode = 200
         )
 
-        launch { eventBus.emitAudit(event) }
+        coroutineScope {
+            launch { eventBus.emitAudit(event) }
 
-        val line1 = withTimeout(1000) { channel.readUTF8Line() }
-        val line2 = withTimeout(1000) { channel.readUTF8Line() }
-        val line3 = withTimeout(1000) { channel.readUTF8Line() }
+            val line1 = withTimeout(1000) { channel.readUTF8Line() }
+            val line2 = withTimeout(1000) { channel.readUTF8Line() }
+            val line3 = withTimeout(1000) { channel.readUTF8Line() }
 
-        assertEquals("event: audit", line1)
-        assertNotNull(line2)
-        assertTrue(line2.startsWith("data: "))
-        assertEquals("", line3)
+            assertEquals("event: audit", line1)
+            assertNotNull(line2)
+            assertTrue(line2.startsWith("data: "))
+            assertEquals("", line3)
+        }
 
-        channel.cancel()
+        channel.cancel(CancellationException("SSE test completed"))
     }
 }
