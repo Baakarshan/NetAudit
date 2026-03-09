@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
     application
+    jacoco
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
@@ -83,6 +84,15 @@ tasks.withType<Test> {
     // 使用唯一的二进制结果目录，避免 Windows 文件锁导致无法清理
     val uniqueBinaryDir = layout.buildDirectory.dir("test-results/binary-${System.currentTimeMillis()}")
     binaryResultsDirectory.set(uniqueBinaryDir)
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
 }
 
 kotlin {
