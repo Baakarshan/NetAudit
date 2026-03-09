@@ -10,6 +10,8 @@ import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -26,11 +28,13 @@ class AlertEngineTest {
         val alertRepo = mockk<AlertRepository>()
         coEvery { alertRepo.save(any()) } just Runs
 
-        val engine = AlertEngine(eventBus, alertRepo, this)
+        val engine = AlertEngine(eventBus, alertRepo, backgroundScope)
         engine.start()
+        runCurrent()
 
         val alertDeferred = async { eventBus.alertEvents.first() }
         eventBus.emitAudit(telnetEvent(username = "admin"))
+        runCurrent()
 
         val alert = withTimeout(1000) { alertDeferred.await() }
         assertEquals(AlertLevel.CRITICAL, alert.level)
@@ -43,12 +47,14 @@ class AlertEngineTest {
         val alertRepo = mockk<AlertRepository>()
         coEvery { alertRepo.save(any()) } just Runs
 
-        val engine = AlertEngine(eventBus, alertRepo, this)
+        val engine = AlertEngine(eventBus, alertRepo, backgroundScope)
         engine.start()
+        runCurrent()
 
         eventBus.emitAudit(httpEvent(url = "http://example.com/index.html"))
-
-        val alert = withTimeoutOrNull(200) { eventBus.alertEvents.first() }
+        val alertDeferred = async { withTimeoutOrNull(200) { eventBus.alertEvents.first() } }
+        advanceTimeBy(250)
+        val alert = alertDeferred.await()
         assertNull(alert)
     }
 
@@ -58,11 +64,13 @@ class AlertEngineTest {
         val alertRepo = mockk<AlertRepository>()
         coEvery { alertRepo.save(any()) } just Runs
 
-        val engine = AlertEngine(eventBus, alertRepo, this)
+        val engine = AlertEngine(eventBus, alertRepo, backgroundScope)
         engine.start()
+        runCurrent()
 
         val alertDeferred = async { eventBus.alertEvents.first() }
         eventBus.emitAudit(httpEvent(url = "http://example.com/admin/config"))
+        runCurrent()
 
         val alert = withTimeout(1000) { alertDeferred.await() }
         assertEquals(AlertLevel.WARN, alert.level)
@@ -75,12 +83,14 @@ class AlertEngineTest {
         val alertRepo = mockk<AlertRepository>()
         coEvery { alertRepo.save(any()) } just Runs
 
-        val engine = AlertEngine(eventBus, alertRepo, this)
+        val engine = AlertEngine(eventBus, alertRepo, backgroundScope)
         engine.start()
+        runCurrent()
 
         val alertDeferred = async { eventBus.alertEvents.first() }
         val longDomain = "a".repeat(60) + ".example.com"
         eventBus.emitAudit(dnsEvent(queryDomain = longDomain))
+        runCurrent()
 
         val alert = withTimeout(1000) { alertDeferred.await() }
         assertNotNull(alert)
