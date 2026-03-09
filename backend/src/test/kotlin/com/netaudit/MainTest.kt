@@ -71,6 +71,34 @@ class MainTest {
     }
 
     @Test
+    fun `module uses defaults without background`() = testApplication {
+        environment {
+            config = MapApplicationConfig(
+                "database.url" to "jdbc:h2:mem:defaults;DB_CLOSE_DELAY=-1",
+                "database.driver" to "org.h2.Driver",
+                "database.user" to "sa",
+                "database.password" to "",
+                "database.maxPoolSize" to "2",
+                "capture.interface" to "lo",
+                "capture.promiscuous" to "false",
+                "capture.snapshotLength" to "65536",
+                "capture.readTimeout" to "100",
+                "capture.channelBufferSize" to "16",
+                "alert.enabled" to "false"
+            )
+        }
+
+        application {
+            module(startBackground = false)
+        }
+
+        startApplication()
+
+        val response = client.get("/health")
+        assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
     fun `module starts background services when enabled`() = testApplication {
         environment { config = MapApplicationConfig() }
         val registry = ParserRegistry()
