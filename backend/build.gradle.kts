@@ -79,6 +79,10 @@ tasks.withType<JavaCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+
+    // 使用唯一的二进制结果目录，避免 Windows 文件锁导致无法清理
+    val uniqueBinaryDir = layout.buildDirectory.dir("test-results/binary-${System.currentTimeMillis()}")
+    binaryResultsDirectory.set(uniqueBinaryDir)
 }
 
 kotlin {
