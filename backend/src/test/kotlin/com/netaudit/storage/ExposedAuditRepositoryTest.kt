@@ -101,6 +101,30 @@ class ExposedAuditRepositoryTest {
     }
 
     @Test
+    fun `test countAll and findByEventId`() = runTest {
+        val event = httpEvent("event-1")
+        repository.save(event)
+
+        assertEquals(1L, repository.countAll())
+        val found = repository.findByEventId(event.id)
+        assertEquals(event.id, found?.id)
+    }
+
+    @Test
+    fun `test default parameters`() = runTest {
+        val event = httpEvent("default-1")
+        repository.save(event)
+
+        assertTrue(repository.findAll().isNotEmpty())
+        assertTrue(repository.findByProtocol(ProtocolType.HTTP).isNotEmpty())
+        assertTrue(repository.findBySourceIp(event.srcIp).isNotEmpty())
+        assertTrue(
+            repository.findBetween(event.timestamp - 1.seconds, event.timestamp + 1.seconds).isNotEmpty()
+        )
+        assertTrue(repository.findRecent().isNotEmpty())
+    }
+
+    @Test
     fun `test pagination`() = runTest {
         val events = List(10) { i -> httpEvent("test-$i") }
         repository.saveBatch(events)

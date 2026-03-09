@@ -57,6 +57,23 @@ class ExposedAlertRepositoryTest {
     }
 
     @Test
+    fun `test default limit`() = runTest {
+        val alert = AlertRecord(
+            id = "alert-default",
+            timestamp = Instant.parse("2024-01-01T00:00:00Z"),
+            level = AlertLevel.INFO,
+            ruleName = "rule-default",
+            message = "message-default",
+            auditEventId = "event-default",
+            protocol = ProtocolType.HTTP
+        )
+        repository.save(alert)
+
+        val recent = repository.findRecent()
+        assertEquals(alert.id, recent.first().id)
+    }
+
+    @Test
     fun `test countByLevel`() = runTest {
         val alert1 = AlertRecord(
             id = "alert-1",

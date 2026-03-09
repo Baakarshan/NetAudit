@@ -7,10 +7,14 @@ import com.netaudit.parser.ProtocolParser
 import io.mockk.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 class TcpStreamTrackerTest {
     private val mockRegistry = mockk<ParserRegistry>()
@@ -145,5 +149,48 @@ class TcpStreamTrackerTest {
 
         // 不应创建流状态
         assertEquals(0, tracker.activeStreamCount())
+    }
+
+    @Test
+    fun `cleanup job removes expired streams`() = runTest {
+        val mockParser = mockk<ProtocolParser>(relaxed = true)
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        coEvery { mockParser.parse(any()) } returns null
+
+        var now = Instant.parse("2024-01-01T00:00:00Z")
+        val tracker = TcpStreamTracker(
+            registry = mockRegistry,
+            eventBus = mockEventBus,
+            scope = this,
+            streamTimeoutSeconds = 1,
+            cleanupIntervalMs = 1,
+            nowProvider = { now }
+        )
+
+        val metadata = PacketMetadata(
+            timestamp = now,
+            srcMac = "00:11:22:33:44:55",
+            dstMac = "AA:BB:CC:DD:EE:FF",
+            srcIp = "192.168.1.100",
+            dstIp = "192.168.1.1",
+            srcPort = 54321,
+            dstPort = 80,
+            ipProtocol = TransportProtocol.TCP,
+            tcpFlags = TcpFlags(syn = false, ack = true, fin = false, rst = false, psh = false),
+            seqNumber = 1000L,
+            ackNumber = 2000L,
+            payload = "data".toByteArray()
+        )
+        tracker.handleTcpPacket(metadata)
+        assertEquals(1, tracker.activeStreamCount())
+
+        val cleanupJob = tracker.startCleanupJob()
+        now = now + 2.seconds
+        advanceTimeBy(2000)
+        runCurrent()
+
+        assertEquals(0, tracker.activeStreamCount())
+        cleanupJob.cancel()
+        cleanupJob.join()
     }
 }

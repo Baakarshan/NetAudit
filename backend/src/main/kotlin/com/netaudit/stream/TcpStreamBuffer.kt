@@ -10,7 +10,8 @@ import kotlinx.datetime.Instant
  */
 class TcpStreamBuffer(
     val key: StreamKey,
-    val createdAt: Instant = Clock.System.now()
+    private val nowProvider: () -> Instant = Clock.System::now,
+    val createdAt: Instant = nowProvider()
 ) {
     private val clientToServerBuf = StringBuilder()
     private val serverToClientBuf = StringBuilder()
@@ -22,13 +23,13 @@ class TcpStreamBuffer(
     /** 追加来自客户端方向的 payload */
     fun appendClientData(data: ByteArray) {
         clientToServerBuf.append(String(data, Charsets.UTF_8))
-        lastActivityAt = Clock.System.now()
+        lastActivityAt = nowProvider()
     }
 
     /** 追加来自服务端方向的 payload */
     fun appendServerData(data: ByteArray) {
         serverToClientBuf.append(String(data, Charsets.UTF_8))
-        lastActivityAt = Clock.System.now()
+        lastActivityAt = nowProvider()
     }
 
     /** 获取客户端→服务端方向的缓冲内容（不清除） */
@@ -53,6 +54,6 @@ class TcpStreamBuffer(
 
     /** 判断是否超时（用于定期清理） */
     fun isExpired(timeoutSeconds: Long = 60): Boolean {
-        return (Clock.System.now() - lastActivityAt).inWholeSeconds > timeoutSeconds
+        return (nowProvider() - lastActivityAt).inWholeSeconds > timeoutSeconds
     }
 }

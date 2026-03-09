@@ -87,18 +87,22 @@ object DatabaseFactory {
 
     private fun configureJsonbIfPostgres(tx: Transaction) {
         val isPostgres = TransactionManager.current().db.dialect is PostgreSQLDialect
+        configureJsonbIfPostgres(isPostgres, tx::exec)
+    }
+
+    internal fun configureJsonbIfPostgres(isPostgres: Boolean, exec: (String) -> Unit) {
         if (!isPostgres) {
             logger.debug { "Skip JSONB setup: non-PostgreSQL dialect" }
             return
         }
 
-        tx.exec(
+        exec(
             """
             ALTER TABLE audit_logs
             ALTER COLUMN details TYPE jsonb USING details::jsonb
             """.trimIndent()
         )
-        tx.exec(
+        exec(
             """
             CREATE INDEX IF NOT EXISTS idx_audit_details
             ON audit_logs USING GIN (details)

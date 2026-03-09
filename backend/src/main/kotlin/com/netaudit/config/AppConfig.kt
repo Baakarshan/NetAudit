@@ -24,8 +24,7 @@ data class AppConfig(
     val alertEnabled: Boolean
 )
 
-fun loadConfig(config: ApplicationConfig): AppConfig {
-    val env = System.getenv()
+fun loadConfig(config: ApplicationConfig, env: Map<String, String> = System.getenv()): AppConfig {
 
     val databaseUrl = env["DATABASE_URL"] ?: config.property("database.url").getString()
     val databaseDriver = env["DATABASE_DRIVER"] ?: config.property("database.driver").getString()

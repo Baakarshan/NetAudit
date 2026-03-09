@@ -10,8 +10,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import java.io.File
 import kotlinx.datetime.Clock
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 class BatchWriterTest {
     @Test
@@ -93,6 +95,40 @@ class BatchWriterTest {
             coVerify(exactly = 0) { mockRepo.saveBatch(any()) }
         } finally {
             writer.shutdown()
+        }
+    }
+
+    @Test
+    fun `retry and dead letter queue after failures`() = runTest {
+        val mockRepo = mockk<AuditRepository>()
+        coEvery { mockRepo.saveBatch(any()) } throws RuntimeException("db down")
+
+        val eventBus = AuditEventBus()
+        val writer = BatchWriter(
+            repository = mockRepo,
+            eventBus = eventBus,
+            scope = this,
+            batchSize = 1,
+            flushIntervalMs = 1
+        )
+        writer.start()
+
+        val dlqFile = File("logs/dead-letter-queue.jsonl")
+        if (dlqFile.exists()) {
+            dlqFile.delete()
+        }
+
+        try {
+            eventBus.emitAudit(httpEvent("retry-1"))
+            runCurrent()
+
+            advanceTimeBy(10)
+            runCurrent()
+
+            writer.shutdown()
+            assertTrue(dlqFile.exists())
+        } finally {
+            writer.stop()
         }
     }
 

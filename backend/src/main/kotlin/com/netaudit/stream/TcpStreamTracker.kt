@@ -6,9 +6,12 @@ import com.netaudit.parser.ProtocolParser
 import com.netaudit.event.AuditEventBus
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -29,7 +32,9 @@ class TcpStreamTracker(
     private val registry: ParserRegistry,
     private val eventBus: AuditEventBus,
     private val scope: CoroutineScope,
-    private val streamTimeoutSeconds: Long = 60
+    private val streamTimeoutSeconds: Long = 60,
+    private val cleanupIntervalMs: Long = 30_000,
+    private val nowProvider: () -> Instant = Clock.System::now
 ) {
     private val streams = mutableMapOf<StreamKey, TcpStreamBuffer>()
 
@@ -50,7 +55,7 @@ class TcpStreamTracker(
         // 查找或创建 Buffer
         val buffer = streams.getOrPut(canonicalKey) {
             logger.debug { "New TCP stream: $canonicalKey" }
-            TcpStreamBuffer(canonicalKey)
+            TcpStreamBuffer(canonicalKey, nowProvider)
         }
 
         // 判断方向
@@ -139,10 +144,10 @@ class TcpStreamTracker(
     /**
      * 启动定时清理协程（每 30 秒清理超时连接）。
      */
-    fun startCleanupJob() {
-        scope.launch {
+    fun startCleanupJob(): Job {
+        return scope.launch {
             while (isActive) {
-                delay(30_000)
+                delay(cleanupIntervalMs)
                 val before = streams.size
                 streams.entries.removeAll { it.value.isExpired(streamTimeoutSeconds) }
                 val removed = before - streams.size
