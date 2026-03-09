@@ -5,6 +5,7 @@ import org.pcap4j.packet.*
 import org.pcap4j.packet.namednumber.*
 import org.pcap4j.util.MacAddress
 import java.net.InetAddress
+import java.sql.Timestamp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -176,5 +177,230 @@ class PacketDecoderTest {
         assertNotNull(metadata.tcpFlags)
         assertEquals(true, metadata.tcpFlags?.syn)
         assertTrue(metadata.payload.isEmpty())
+    }
+
+    @Test
+    fun `decode uses sql timestamp when available`() {
+        val ethPacket = buildTcpEthernetPacket("ping".toByteArray())
+        val timestamp = Timestamp(1700000000000)
+        val wrapped = TimestampedPacket(ethPacket, timestamp)
+
+        val metadata = decoder.decode(wrapped)
+
+        assertNotNull(metadata)
+        assertEquals(
+            kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp.time),
+            metadata.timestamp
+        )
+    }
+
+    @Test
+    fun `decode uses java time instant when available`() {
+        val ethPacket = buildTcpEthernetPacket("ping".toByteArray())
+        val timestamp = java.time.Instant.parse("2024-01-01T00:00:00Z")
+        val wrapped = TimestampedPacket(ethPacket, timestamp)
+
+        val metadata = decoder.decode(wrapped)
+
+        assertNotNull(metadata)
+        assertEquals(
+            kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp.toEpochMilli()),
+            metadata.timestamp
+        )
+    }
+
+    @Test
+    fun `parseIpFromPayload parses ipv4 from payload raw data`() {
+        val ipPacket = buildUdpIpPacket(byteArrayOf(1, 2, 3, 4))
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(UnknownPacket.Builder().rawData(ipPacket.rawData))
+            .paddingAtBuild(true)
+            .build()
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromPayload",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNotNull(result)
+    }
+
+    @Test
+    fun `decode returns null for udp without payload`() {
+        val ipPacket = buildUdpIpPacket(null)
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(ipPacket.builder)
+            .paddingAtBuild(true)
+            .build()
+
+        val metadata = decoder.decode(ethPacket)
+
+        assertNull(metadata)
+    }
+
+    @Test
+    fun `decode returns null for ipv4 non tcp udp`() {
+        val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
+        val dstAddr = InetAddress.getByName("192.168.1.1") as java.net.Inet4Address
+
+        val ipBuilder = IpV4Packet.Builder()
+            .version(IpVersion.IPV4)
+            .tos(IpV4Rfc791Tos.newInstance(0))
+            .ttl(64.toByte())
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
+            .protocol(IpNumber.ICMPV4)
+            .payloadBuilder(UnknownPacket.Builder().rawData(byteArrayOf(1, 2, 3)))
+            .correctChecksumAtBuild(true)
+            .correctLengthAtBuild(true)
+
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(ipBuilder)
+            .paddingAtBuild(true)
+            .build()
+
+        val metadata = decoder.decode(ethPacket)
+
+        assertNull(metadata)
+    }
+
+    @Test
+    fun `parseIpFromRaw handles short frame`() {
+        val raw = ByteArray(14)
+        raw[12] = 0x08
+        raw[13] = 0x00
+        val ethPacket = EthernetPacket.newPacket(raw, 0, raw.size)
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromRaw",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `parseIpFromRaw parses ipv4 from ethernet raw`() {
+        val ipPacket = buildUdpIpPacket(byteArrayOf(1, 2, 3, 4))
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(UnknownPacket.Builder().rawData(ipPacket.rawData))
+            .paddingAtBuild(true)
+            .build()
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromRaw",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNotNull(result)
+    }
+
+    private fun buildTcpEthernetPacket(payload: ByteArray): EthernetPacket {
+        val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
+        val dstAddr = InetAddress.getByName("192.168.1.1") as java.net.Inet4Address
+
+        val tcpBuilder = TcpPacket.Builder()
+            .srcPort(TcpPort(54321.toShort(), ""))
+            .dstPort(TcpPort.HTTP)
+            .sequenceNumber(1000)
+            .acknowledgmentNumber(0)
+            .syn(false)
+            .ack(true)
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
+            .payloadBuilder(UnknownPacket.Builder().rawData(payload))
+            .correctChecksumAtBuild(true)
+            .correctLengthAtBuild(true)
+
+        val ipBuilder = IpV4Packet.Builder()
+            .version(IpVersion.IPV4)
+            .tos(IpV4Rfc791Tos.newInstance(0))
+            .ttl(64.toByte())
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
+            .protocol(IpNumber.TCP)
+            .payloadBuilder(tcpBuilder)
+            .correctChecksumAtBuild(true)
+            .correctLengthAtBuild(true)
+
+        return EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(ipBuilder)
+            .paddingAtBuild(true)
+            .build()
+    }
+
+    private fun buildUdpIpPacket(payload: ByteArray?): IpV4Packet {
+        val srcAddr = InetAddress.getByName("192.168.1.100") as java.net.Inet4Address
+        val dstAddr = InetAddress.getByName("8.8.8.8") as java.net.Inet4Address
+
+        val udpBuilder = UdpPacket.Builder()
+            .srcPort(UdpPort(54321.toShort(), ""))
+            .dstPort(UdpPort.DOMAIN)
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
+            .correctChecksumAtBuild(true)
+            .correctLengthAtBuild(true)
+
+        if (payload != null) {
+            udpBuilder.payloadBuilder(UnknownPacket.Builder().rawData(payload))
+        }
+
+        return IpV4Packet.Builder()
+            .version(IpVersion.IPV4)
+            .tos(IpV4Rfc791Tos.newInstance(0))
+            .ttl(64.toByte())
+            .srcAddr(srcAddr)
+            .dstAddr(dstAddr)
+            .protocol(IpNumber.UDP)
+            .payloadBuilder(udpBuilder)
+            .correctChecksumAtBuild(true)
+            .correctLengthAtBuild(true)
+            .build()
+    }
+
+    private class TimestampedPacket(
+        private val inner: Packet,
+        private val timestamp: Any
+    ) : Packet {
+        @Suppress("unused")
+        fun getTimestamp(): Any = timestamp
+
+        override fun getHeader(): Packet.Header = inner.header
+
+        override fun getPayload(): Packet? = inner.payload
+
+        override fun length(): Int = inner.length()
+
+        override fun getRawData(): ByteArray = inner.rawData
+
+        override fun getBuilder(): Packet.Builder = inner.builder
+
+        override fun <T : Packet> get(clazz: Class<T>): T? {
+            if (clazz.isInstance(inner)) {
+                return clazz.cast(inner)
+            }
+            return inner.get(clazz)
+        }
     }
 }
