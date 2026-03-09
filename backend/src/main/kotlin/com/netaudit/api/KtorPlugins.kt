@@ -10,9 +10,6 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
-import io.ktor.server.plugins.cors.routing.anyHost
-import io.ktor.server.plugins.cors.routing.allowHeader
-import io.ktor.server.plugins.cors.routing.allowMethod
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.plugins.statuspages.exception
 import io.ktor.server.response.respond
