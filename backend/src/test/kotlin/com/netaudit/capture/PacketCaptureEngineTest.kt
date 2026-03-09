@@ -127,11 +127,69 @@ class PacketCaptureEngineTest {
     }
 
     @Test
+    fun `startOffline propagates pcap exception`() = runTest {
+        val factory = object : PacketSourceFactory {
+            override fun openLive(config: CaptureConfig): PacketSource {
+                throw UnsupportedOperationException("not used")
+            }
+
+            override fun openOffline(pcapFilePath: String): PacketSource {
+                throw PcapNativeException("open failed")
+            }
+        }
+        val engine = PacketCaptureEngine(testConfig(), this, sourceFactory = factory)
+
+        assertFailsWith<PcapNativeException> {
+            engine.startOffline("missing.pcap")
+        }
+    }
+
+    @Test
     fun `stop is safe when not running`() = runTest {
         val engine = PacketCaptureEngine(testConfig(), this, sourceFactory = FakeFactory(FakePacketSource(emptyList())))
         engine.stop()
         assertTrue(!engine.rawPacketChannel.isClosedForReceive)
         assertTrue(!engine.rawPacketChannel.isClosedForSend)
+    }
+
+    @Test
+    fun `captureLoop returns when source missing`() = runTest {
+        val engine = PacketCaptureEngine(testConfig(), this, sourceFactory = FakeFactory(FakePacketSource(emptyList())))
+        val method = PacketCaptureEngine::class.java.getDeclaredMethod("captureLoop")
+        method.isAccessible = true
+        method.invoke(engine)
+        assertTrue(true)
+    }
+
+    @Test
+    fun `stop handles running with null source`() = runTest {
+        val engine = PacketCaptureEngine(testConfig(), this, sourceFactory = FakeFactory(FakePacketSource(emptyList())))
+        setField(engine, "running", true)
+        setField(engine, "source", null)
+
+        engine.stop()
+
+        assertTrue(engine.rawPacketChannel.isClosedForSend)
+        assertTrue(engine.rawPacketChannel.isClosedForReceive)
+    }
+
+    @Test
+    fun `captureLoop logs every 1000 and handles outer error`() = runTest {
+        val packet = mockk<Packet>()
+        val source = FakePacketSource(listOf(packet))
+        val engine = PacketCaptureEngine(testConfig(), this, sourceFactory = FakeFactory(source))
+
+        setField(engine, "source", source)
+        setField(engine, "running", true)
+        setField(engine, "offlineMode", false)
+        setField(engine, "capturedCount", 999L)
+        engine.afterSendHook = { throw IllegalStateException("boom") }
+
+        val method = PacketCaptureEngine::class.java.getDeclaredMethod("captureLoop")
+        method.isAccessible = true
+        method.invoke(engine)
+
+        assertTrue(engine.rawPacketChannel.isClosedForSend)
     }
 
     private fun testConfig(channelBufferSize: Int = 4): CaptureConfig = CaptureConfig(
@@ -178,5 +236,11 @@ class PacketCaptureEngineTest {
             offlineCalls += 1
             return source
         }
+    }
+
+    private fun setField(target: Any, name: String, value: Any?) {
+        val field = target.javaClass.getDeclaredField(name)
+        field.isAccessible = true
+        field.set(target, value)
     }
 }

@@ -39,6 +39,7 @@ class PacketCaptureEngine(
     @Volatile private var offlineMode = false
     private var capturedCount = 0L
     private var droppedCount = 0L
+    internal var afterSendHook: ((Packet) -> Unit)? = null
 
     /**
      * 启动在线抓包。在 scope 中启动协程。
@@ -149,6 +150,8 @@ class PacketCaptureEngine(
                         "Captured $capturedCount packets so far (dropped: $droppedCount)"
                     }
                 }
+
+                afterSendHook?.invoke(packet)
             }
         } catch (e: Exception) {
             logger.error(e) { "Capture loop error: ${e.message}" }
