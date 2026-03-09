@@ -51,9 +51,13 @@ class BatchWriter(
         }
 
         flushJob = scope.launch {
-            while (isActive) {
-                delay(flushIntervalMs)
-                flush()
+            try {
+                while (isActive) {
+                    delay(flushIntervalMs)
+                    flush()
+                }
+            } finally {
+                logger.debug { "BatchWriter flush loop stopped" }
             }
         }
 
