@@ -4,6 +4,7 @@ import com.netaudit.event.AuditEventBus
 import com.netaudit.model.AuditEvent
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsChannel
+import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.readUTF8Line
@@ -20,6 +21,7 @@ import kotlin.test.assertTrue
 class SseRoutesTest {
     @Test
     fun `SSE emits audit event`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val eventBus = AuditEventBus()
 
         application {

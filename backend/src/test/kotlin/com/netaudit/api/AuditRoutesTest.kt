@@ -11,6 +11,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
+import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
@@ -26,6 +27,7 @@ import kotlin.test.assertEquals
 class AuditRoutesTest {
     @Test
     fun `GET audit logs default pagination`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
         val sample = sampleHttpEvent()
         coEvery { auditRepo.findAll(0, 50) } returns listOf(sample)
@@ -46,6 +48,7 @@ class AuditRoutesTest {
 
     @Test
     fun `GET audit logs protocol filter`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
         val sample = sampleHttpEvent()
         coEvery { auditRepo.findByProtocol(ProtocolType.HTTP, 0, 50) } returns listOf(sample)
@@ -62,6 +65,7 @@ class AuditRoutesTest {
 
     @Test
     fun `GET audit recent`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
         val sample = sampleHttpEvent()
         coEvery { auditRepo.findRecent(2) } returns listOf(sample)
@@ -78,6 +82,7 @@ class AuditRoutesTest {
 
     @Test
     fun `GET audit by id`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
         val sample = sampleHttpEvent()
         coEvery { auditRepo.findByEventId(sample.id) } returns sample
@@ -95,6 +100,7 @@ class AuditRoutesTest {
 
     @Test
     fun `GET audit by id not found`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
         coEvery { auditRepo.findByEventId("missing") } returns null
 
@@ -109,6 +115,7 @@ class AuditRoutesTest {
 
     @Test
     fun `GET stats dashboard`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
         val alertRepo = mockk<AlertRepository>()
         coEvery { auditRepo.countAll() } returns 100
@@ -130,6 +137,7 @@ class AuditRoutesTest {
 
     @Test
     fun `GET alerts recent`() = testApplication {
+        environment { config = MapApplicationConfig() }
         val alertRepo = mockk<AlertRepository>()
         coEvery { alertRepo.findRecent(3) } returns emptyList()
 
