@@ -2,6 +2,7 @@ package com.netaudit.capture
 
 import com.netaudit.config.CaptureConfig
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -27,11 +28,13 @@ private val logger = KotlinLogging.logger {}
  */
 class PacketCaptureEngine(
     private val config: CaptureConfig,
-    private val scope: CoroutineScope
-) {
-    val rawPacketChannel = Channel<Packet>(capacity = config.channelBufferSize)
+    private val scope: CoroutineScope,
+    private val sourceFactory: PacketSourceFactory = PcapPacketSourceFactory,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : CaptureEngine {
+    override val rawPacketChannel = Channel<Packet>(capacity = config.channelBufferSize)
 
-    private var handle: PcapHandle? = null
+    private var source: PacketSource? = null
     @Volatile private var running = false
     @Volatile private var offlineMode = false
     private var capturedCount = 0L
@@ -41,7 +44,7 @@ class PacketCaptureEngine(
      * 启动在线抓包。在 scope 中启动协程。
      * 协程内循环: handle.getNextPacket() → channel.send()
      */
-    fun startLive() {
+    override fun startLive() {
         if (running) {
             logger.warn { "Capture engine already running" }
             return
@@ -49,13 +52,7 @@ class PacketCaptureEngine(
         offlineMode = false
 
         try {
-            val nif = Pcaps.getDevByName(config.interfaceName)
-            handle = nif.openLive(
-                config.snapshotLength,
-                if (config.promiscuous) PromiscuousMode.PROMISCUOUS
-                else PromiscuousMode.NONPROMISCUOUS,
-                config.readTimeoutMs
-            )
+            source = sourceFactory.openLive(config)
 
             logger.info {
                 "Capture started on interface=${config.interfaceName}, " +
@@ -64,7 +61,7 @@ class PacketCaptureEngine(
             }
 
             running = true
-            scope.launch(Dispatchers.IO) {
+            scope.launch(ioDispatcher) {
                 captureLoop()
             }
         } catch (e: PcapNativeException) {
@@ -77,7 +74,7 @@ class PacketCaptureEngine(
      * 从 pcap 文件读取（测试用）。
      * 同样走 channel.send()，但读完文件后 close channel。
      */
-    fun startOffline(pcapFilePath: String) {
+    override fun startOffline(pcapFilePath: String) {
         if (running) {
             logger.warn { "Capture engine already running" }
             return
@@ -85,11 +82,11 @@ class PacketCaptureEngine(
 
         offlineMode = true
         try {
-            handle = Pcaps.openOffline(pcapFilePath)
+            source = sourceFactory.openOffline(pcapFilePath)
             logger.info { "Offline capture started from file: $pcapFilePath" }
 
             running = true
-            scope.launch(Dispatchers.IO) {
+            scope.launch(ioDispatcher) {
                 captureLoop()
                 logger.info { "Offline capture completed." }
             }
@@ -102,13 +99,13 @@ class PacketCaptureEngine(
     /**
      * 停止抓包，关闭 handle，关闭 channel。
      */
-    fun stop() {
+    override fun stop() {
         if (!running) {
             return
         }
 
         running = false
-        handle?.close()
+        source?.close()
         rawPacketChannel.close()
 
         logger.info {
@@ -117,12 +114,12 @@ class PacketCaptureEngine(
     }
 
     private fun captureLoop() {
-        val currentHandle = handle ?: return
+        val currentSource = source ?: return
 
         try {
             while (running) {
                 val packet = try {
-                    currentHandle.nextPacket
+                    currentSource.nextPacket()
                 } catch (e: Exception) {
                     logger.error(e) { "Error reading packet: ${e.message}" }
                     break
@@ -161,5 +158,44 @@ class PacketCaptureEngine(
                 stop()
             }
         }
+    }
+}
+
+interface PacketSource {
+    fun nextPacket(): Packet?
+    fun close()
+}
+
+interface PacketSourceFactory {
+    @Throws(PcapNativeException::class)
+    fun openLive(config: CaptureConfig): PacketSource
+
+    @Throws(PcapNativeException::class)
+    fun openOffline(pcapFilePath: String): PacketSource
+}
+
+internal class PcapPacketSource(private val handle: PcapHandle) : PacketSource {
+    override fun nextPacket(): Packet? = handle.nextPacket
+
+    override fun close() {
+        handle.close()
+    }
+}
+
+internal object PcapPacketSourceFactory : PacketSourceFactory {
+    override fun openLive(config: CaptureConfig): PacketSource {
+        val nif = Pcaps.getDevByName(config.interfaceName)
+            ?: throw PcapNativeException("Network interface not found: ${config.interfaceName}")
+        val handle = nif.openLive(
+            config.snapshotLength,
+            if (config.promiscuous) PromiscuousMode.PROMISCUOUS
+            else PromiscuousMode.NONPROMISCUOUS,
+            config.readTimeoutMs
+        )
+        return PcapPacketSource(handle)
+    }
+
+    override fun openOffline(pcapFilePath: String): PacketSource {
+        return PcapPacketSource(Pcaps.openOffline(pcapFilePath))
     }
 }
