@@ -1,13 +1,17 @@
 package com.netaudit.pipeline
 
+import com.netaudit.capture.CaptureEngine
 import com.netaudit.capture.PacketCaptureEngine
 import com.netaudit.config.CaptureConfig
 import com.netaudit.decode.PacketDecoder
+import com.netaudit.decode.PacketDecoderLike
 import com.netaudit.event.AuditEventBus
 import com.netaudit.model.TransportProtocol
 import com.netaudit.parser.ParserRegistry
+import com.netaudit.stream.StreamTracker
 import com.netaudit.stream.TcpStreamTracker
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,11 +30,12 @@ class AuditPipeline(
     private val config: CaptureConfig,
     private val registry: ParserRegistry,
     private val eventBus: AuditEventBus,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val captureEngine: CaptureEngine = PacketCaptureEngine(config, scope),
+    private val decoder: PacketDecoderLike = PacketDecoder(),
+    private val streamTracker: StreamTracker = TcpStreamTracker(registry, eventBus, scope),
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
-    private val decoder = PacketDecoder()
-    private val captureEngine = PacketCaptureEngine(config, scope)
-    private val streamTracker = TcpStreamTracker(registry, eventBus, scope)
 
     /**
      * 启动管道（在线模式）。
@@ -45,7 +50,7 @@ class AuditPipeline(
         captureEngine.startLive()
 
         // 启动解码+分发协程
-        scope.launch(Dispatchers.Default) {
+        scope.launch(dispatcher) {
             for (rawPacket in captureEngine.rawPacketChannel) {
                 try {
                     val metadata = decoder.decode(rawPacket) ?: continue
@@ -70,7 +75,7 @@ class AuditPipeline(
         streamTracker.startCleanupJob()
         captureEngine.startOffline(pcapFilePath)
 
-        scope.launch(Dispatchers.Default) {
+        scope.launch(dispatcher) {
             for (rawPacket in captureEngine.rawPacketChannel) {
                 try {
                     val metadata = decoder.decode(rawPacket) ?: continue

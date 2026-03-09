@@ -35,14 +35,14 @@ class TcpStreamTracker(
     private val streamTimeoutSeconds: Long = 60,
     private val cleanupIntervalMs: Long = 30_000,
     private val nowProvider: () -> Instant = Clock.System::now
-) {
+) : StreamTracker {
     private val streams = mutableMapOf<StreamKey, TcpStreamBuffer>()
 
     /**
      * 处理一个已解码的 TCP 包。
      * 调用时机: PacketDecoder 解码成功后、且为 TCP 包时。
      */
-    suspend fun handleTcpPacket(metadata: PacketMetadata) {
+    override suspend fun handleTcpPacket(metadata: PacketMetadata) {
         val parser = registry.findByEitherPort(metadata.srcPort, metadata.dstPort)
             ?: return  // 不关心的端口
 
@@ -84,7 +84,7 @@ class TcpStreamTracker(
      * 处理 UDP 包。
      * UDP 无需流重组，直接构造 StreamContext 调用 Parser。
      */
-    suspend fun handleUdpPacket(metadata: PacketMetadata) {
+    override suspend fun handleUdpPacket(metadata: PacketMetadata) {
         val parser = registry.findByEitherPort(metadata.srcPort, metadata.dstPort)
             ?: return  // 不关心的端口
 
@@ -144,7 +144,7 @@ class TcpStreamTracker(
     /**
      * 启动定时清理协程（每 30 秒清理超时连接）。
      */
-    fun startCleanupJob(): Job {
+    override fun startCleanupJob(): Job {
         return scope.launch {
             while (isActive) {
                 delay(cleanupIntervalMs)
@@ -159,5 +159,5 @@ class TcpStreamTracker(
     }
 
     /** 获取当前活跃流数量（监控用） */
-    fun activeStreamCount(): Int = streams.size
+    override fun activeStreamCount(): Int = streams.size
 }

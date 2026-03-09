@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * 返回 null 表示该包不是我们感兴趣的（非 IPv4、非 TCP/UDP、无 payload）。
  */
-class PacketDecoder {
+class PacketDecoder : PacketDecoderLike {
     private val timestampMethodCache = ConcurrentHashMap<Class<*>, Method?>()
 
     /**
@@ -34,7 +34,7 @@ class PacketDecoder {
      * 4. 如果 payload 为空 → 对于 UDP 返回 null，对于 TCP 仍然返回（需要感知连接生命周期）
      * 5. 组装 PacketMetadata 返回
      */
-    fun decode(packet: Packet): PacketMetadata? {
+    override fun decode(packet: Packet): PacketMetadata? {
         // L2 - Ethernet
         val ethPacket = (packet as? EthernetPacket)
             ?: packet.get(EthernetPacket::class.java)
