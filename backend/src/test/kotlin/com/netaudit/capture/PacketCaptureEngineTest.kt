@@ -3,6 +3,7 @@ package com.netaudit.capture
 import com.netaudit.config.CaptureConfig
 import io.mockk.mockk
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.pcap4j.core.PcapNativeException
 import org.pcap4j.packet.Packet
@@ -69,6 +70,45 @@ class PacketCaptureEngineTest {
     }
 
     @Test
+    fun `startOffline ignored when running`() = runTest {
+        val source = object : PacketSource {
+            override fun nextPacket(): Packet? = null
+            override fun close() {}
+        }
+        val factory = FakeFactory(source)
+        val engine = PacketCaptureEngine(testConfig(), this, sourceFactory = factory)
+
+        engine.startLive()
+        engine.startOffline("ignored.pcap")
+        engine.stop()
+
+        assertEquals(1, factory.liveCalls)
+        assertEquals(0, factory.offlineCalls)
+    }
+
+    @Test
+    fun `drops packets when channel is full`() = runTest {
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val packets = listOf(mockk<Packet>(), mockk<Packet>())
+        val source = FakePacketSource(packets, throwAfter = true)
+        val factory = FakeFactory(source)
+        val engine = PacketCaptureEngine(
+            config = testConfig(channelBufferSize = 1),
+            scope = this,
+            sourceFactory = factory,
+            ioDispatcher = dispatcher
+        )
+
+        engine.startLive()
+        advanceUntilIdle()
+
+        val droppedField = PacketCaptureEngine::class.java.getDeclaredField("droppedCount")
+        droppedField.isAccessible = true
+        val dropped = droppedField.getLong(engine)
+        assertTrue(dropped >= 1)
+    }
+
+    @Test
     fun `startLive propagates pcap exception`() = runTest {
         val factory = object : PacketSourceFactory {
             override fun openLive(config: CaptureConfig): PacketSource {
@@ -94,12 +134,12 @@ class PacketCaptureEngineTest {
         assertTrue(!engine.rawPacketChannel.isClosedForSend)
     }
 
-    private fun testConfig(): CaptureConfig = CaptureConfig(
+    private fun testConfig(channelBufferSize: Int = 4): CaptureConfig = CaptureConfig(
         interfaceName = "eth0",
         promiscuous = true,
         snapshotLength = 65536,
         readTimeoutMs = 100,
-        channelBufferSize = 4
+        channelBufferSize = channelBufferSize
     )
 
     private class FakePacketSource(
