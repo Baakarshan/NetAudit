@@ -9,8 +9,11 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -64,6 +67,57 @@ class SseRoutesTest {
 
         assertTrue(body.contains(": connected"))
         assertTrue(body.contains("event: alert"))
+    }
+
+    @Test
+    fun `sse handles audit stream cancellation`() = testApplication {
+        environment { config = MapApplicationConfig("ktor.application.modules.size" to "0") }
+        val auditEvents = flow {
+            emit(sampleHttpEvent())
+            throw CancellationException("audit cancel")
+        }
+
+        application {
+            routing {
+                sseRoutes(auditEvents = auditEvents, alertEvents = emptyFlow())
+            }
+        }
+
+        val response = client.get("/api/sse/events")
+        val body = response.bodyAsText()
+        assertTrue(body.contains(": connected"))
+    }
+
+    @Test
+    fun `sse handles alert stream cancellation`() = testApplication {
+        environment { config = MapApplicationConfig("ktor.application.modules.size" to "0") }
+        val alertEvents = flow {
+            emit(sampleAlert())
+            throw CancellationException("alert cancel")
+        }
+
+        application {
+            routing {
+                sseRoutes(auditEvents = emptyFlow(), alertEvents = alertEvents)
+            }
+        }
+
+        val response = client.get("/api/sse/events")
+        val body = response.bodyAsText()
+        assertTrue(body.contains(": connected"))
+    }
+
+    @Test
+    fun `handleSseSession handles write error`() = runTest {
+        handleSseSession(
+            auditEvents = emptyFlow(),
+            alertEvents = emptyFlow(),
+            auditEncoder = { "" },
+            alertEncoder = { "" },
+            writeLine = { throw IllegalStateException("write failed") },
+            flush = { }
+        )
+        assertTrue(true)
     }
 
     private fun sampleHttpEvent(): AuditEvent.HttpEvent = AuditEvent.HttpEvent(

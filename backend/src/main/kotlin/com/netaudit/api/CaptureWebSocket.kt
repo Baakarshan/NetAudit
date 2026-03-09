@@ -9,9 +9,11 @@ import kotlinx.serialization.encodeToString
 import com.netaudit.model.AuditEvent
 import com.netaudit.model.AppJson
 import com.netaudit.event.AuditEventBus
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.ReceiveChannel
 
 private val logger = KotlinLogging.logger {}
 
@@ -28,44 +30,56 @@ internal fun Route.captureWebSocket(
 ) {
     webSocket("/ws/capture") {
         logger.info { "WebSocket client connected: ${call.request.local.remoteHost}" }
+        handleCaptureWebSocketSession(
+            auditEvents = auditEvents,
+            incoming = incoming,
+            sendFrame = { frame -> send(frame) },
+            encode = encode,
+            scope = this
+        )
+    }
+}
 
-        try {
-            // 订阅事件总线
-            val job = launch {
-                auditEvents
-                    .catch { e: Throwable ->
-                        logger.error(e) { "Error in event stream" }
-                    }
-                    .collect { event: AuditEvent ->
-                        try {
-                            val json = encode(event)
-                            send(Frame.Text(json))
-                        } catch (e: Exception) {
-                            logger.error(e) { "Failed to send event to WebSocket client" }
-                        }
-                    }
+internal suspend fun handleCaptureWebSocketSession(
+    auditEvents: Flow<AuditEvent>,
+    incoming: ReceiveChannel<Frame>,
+    sendFrame: suspend (Frame) -> Unit,
+    encode: (AuditEvent) -> String,
+    scope: CoroutineScope
+) {
+    val job = scope.launch {
+        auditEvents
+            .catch { e: Throwable ->
+                logger.error(e) { "Error in event stream" }
             }
-
-            // 处理客户端消息（心跳等）
-            for (frame in incoming) {
-                when (frame) {
-                    is Frame.Text -> {
-                        val text = frame.readText()
-                        if (text == "ping") {
-                            send(Frame.Text("pong"))
-                        }
-                    }
-                    else -> {}
+            .collect { event: AuditEvent ->
+                try {
+                    val json = encode(event)
+                    sendFrame(Frame.Text(json))
+                } catch (e: Exception) {
+                    logger.error(e) { "Failed to send event to WebSocket client" }
                 }
             }
+    }
 
-            job.cancel()
-        } catch (e: ClosedReceiveChannelException) {
-            logger.info { "WebSocket client disconnected normally" }
-        } catch (e: Exception) {
-            logger.error(e) { "WebSocket error: ${e.message}" }
-        } finally {
-            logger.info { "WebSocket connection closed" }
+    try {
+        while (true) {
+            when (val frame = incoming.receive()) {
+                is Frame.Text -> {
+                    val text = frame.readText()
+                    if (text == "ping") {
+                        sendFrame(Frame.Text("pong"))
+                    }
+                }
+                else -> {}
+            }
         }
+    } catch (e: ClosedReceiveChannelException) {
+        logger.info { "WebSocket client disconnected normally" }
+    } catch (e: Exception) {
+        logger.error(e) { "WebSocket error: ${e.message}" }
+    } finally {
+        job.cancel()
+        logger.info { "WebSocket connection closed" }
     }
 }

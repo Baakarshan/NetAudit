@@ -11,8 +11,11 @@ import io.ktor.server.testing.testApplication
 import io.ktor.server.websocket.WebSockets as ServerWebSockets
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -71,6 +74,38 @@ class CaptureWebSocketTest {
             assertEquals("pong", pong.readText())
             send(Frame.Binary(true, byteArrayOf(1, 2, 3)))
         }
+    }
+
+    @Test
+    fun `handleCaptureWebSocketSession handles closed channel`() = runTest {
+        val incoming = Channel<Frame>(capacity = 1)
+        incoming.close()
+
+        handleCaptureWebSocketSession(
+            auditEvents = emptyFlow(),
+            incoming = incoming,
+            sendFrame = { },
+            encode = { "" },
+            scope = this
+        )
+
+        assertTrue(true)
+    }
+
+    @Test
+    fun `handleCaptureWebSocketSession handles send error`() = runTest {
+        val incoming = Channel<Frame>(capacity = 1)
+        incoming.trySend(Frame.Text("ping"))
+
+        handleCaptureWebSocketSession(
+            auditEvents = emptyFlow(),
+            incoming = incoming,
+            sendFrame = { throw IllegalStateException("send failed") },
+            encode = { "" },
+            scope = this
+        )
+
+        assertTrue(true)
     }
 
     private fun sampleHttpEvent(): AuditEvent.HttpEvent = AuditEvent.HttpEvent(

@@ -28,41 +28,58 @@ fun Route.sseRoutes(
         call.response.cacheControl(CacheControl.NoCache(null))
         call.respondTextWriter(contentType = ContentType.Text.EventStream) {
             logger.info { "SSE client connected: ${call.request.local.remoteAddress}" }
+            handleSseSession(
+                auditEvents = auditEvents,
+                alertEvents = alertEvents,
+                auditEncoder = auditEncoder,
+                alertEncoder = alertEncoder,
+                writeLine = { line -> write(line) },
+                flush = { flush() }
+            )
+        }
+    }
+}
 
-            // 发送 SSE 注释行，确保连接建立并立即刷新
-            write(sseComment("connected"))
-            flush()
+internal suspend fun handleSseSession(
+    auditEvents: Flow<AuditEvent>,
+    alertEvents: Flow<AlertRecord>,
+    auditEncoder: (AuditEvent) -> String,
+    alertEncoder: (AlertRecord) -> String,
+    writeLine: (String) -> Unit,
+    flush: () -> Unit
+) {
+    try {
+        // 发送 SSE 注释行，确保连接建立并立即刷新
+        writeLine(sseComment("connected"))
+        flush()
 
-            try {
-                kotlinx.coroutines.supervisorScope {
-                    launch {
-                        try {
-                            auditEvents.collect { event ->
-                                val json = auditEncoder(event)
-                                write(sseEvent("audit", json))
-                                flush()
-                            }
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            logger.warn(e) { "Audit events stream error: ${e.message}" }
-                        }
+        kotlinx.coroutines.supervisorScope {
+            launch {
+                try {
+                    auditEvents.collect { event ->
+                        val json = auditEncoder(event)
+                        writeLine(sseEvent("audit", json))
+                        flush()
                     }
-                    launch {
-                        try {
-                            alertEvents.collect { alert ->
-                                val json = alertEncoder(alert)
-                                write(sseEvent("alert", json))
-                                flush()
-                            }
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            logger.warn(e) { "Alert events stream error: ${e.message}" }
-                        }
-                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    logger.warn(e) { "Audit events stream error: ${e.message}" }
                 }
-            } catch (e: Exception) {
-                logger.info { "SSE client disconnected: ${e.message}" }
+            }
+            launch {
+                try {
+                    alertEvents.collect { alert ->
+                        val json = alertEncoder(alert)
+                        writeLine(sseEvent("alert", json))
+                        flush()
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    logger.warn(e) { "Alert events stream error: ${e.message}" }
+                }
             }
         }
+    } catch (e: Exception) {
+        logger.info { "SSE client disconnected: ${e.message}" }
     }
 }
