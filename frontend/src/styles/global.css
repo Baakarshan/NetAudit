@@ -1,0 +1,45 @@
+:root {
+  --bg-0: #f6f7fb;
+  --bg-1: #eef1f7;
+  --panel: #ffffff;
+  --panel-2: #f9fafc;
+  --text-1: #1b1f2a;
+  --text-2: #4b5563;
+  --accent: #0ea5e9;
+  --accent-2: #14b8a6;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --ok: #10b981;
+  --shadow: 0 10px 30px rgba(16, 24, 40, 0.12);
+  --radius: 14px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--text-1);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #e6f2ff 0%, rgba(230, 242, 255, 0) 70%),
+    radial-gradient(800px 500px at 95% 0%, #eafff5 0%, rgba(234, 255, 245, 0) 70%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1));
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.text-muted {
+  color: var(--text-2);
+}

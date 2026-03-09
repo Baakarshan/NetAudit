@@ -5,18 +5,22 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/views/HomeView.vue')
+      redirect: '/dashboard'
     },
     {
-      path: '/capture',
-      name: 'capture',
-      component: () => import('@/views/CaptureView.vue')
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('@/views/DashboardView.vue')
     },
     {
-      path: '/analysis',
-      name: 'analysis',
-      component: () => import('@/views/AnalysisView.vue')
+      path: '/audit',
+      name: 'audit',
+      component: () => import('@/views/AuditLogView.vue')
+    },
+    {
+      path: '/alerts',
+      name: 'alerts',
+      component: () => import('@/views/AlertView.vue')
     }
   ]
 })
