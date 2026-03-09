@@ -43,6 +43,9 @@ class ModelAndConfigCoverageTest {
         assertTrue(TransportProtocol.entries.isNotEmpty())
         assertEquals(TransportProtocol.TCP, TransportProtocol.valueOf("TCP"))
         assertEquals(TransportProtocol.TCP, TransportProtocol.fromName("TCP"))
+        val companion = TransportProtocol.Companion
+        assertEquals(TransportProtocol.TCP, companion.fromName("TCP"))
+        assertTrue(companion.toString().isNotBlank())
         assertTrue(Direction.entries.isNotEmpty())
         assertEquals(Direction.CLIENT_TO_SERVER, Direction.valueOf("CLIENT_TO_SERVER"))
 
