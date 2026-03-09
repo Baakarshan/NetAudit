@@ -125,6 +125,63 @@ class AuditPipelineTest {
     }
 
     @Test
+    fun `startOffline dispatches decoded packets`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val capture = FakeCaptureEngine()
+        val decoder = FakeDecoder(listOf(tcpMetadata(), udpMetadata(), null))
+        val tracker = FakeStreamTracker()
+        val pipeline = AuditPipeline(
+            config = testConfig(),
+            registry = ParserRegistry(),
+            eventBus = AuditEventBus(),
+            scope = this,
+            captureEngine = capture,
+            decoder = decoder,
+            streamTracker = tracker,
+            dispatcher = dispatcher
+        )
+
+        pipeline.startOffline("sample.pcap")
+        capture.rawPacketChannel.trySend(mockk())
+        capture.rawPacketChannel.trySend(mockk())
+        capture.rawPacketChannel.trySend(mockk())
+        capture.rawPacketChannel.close()
+
+        advanceUntilIdle()
+
+        assertEquals(1, tracker.tcpCalls)
+        assertEquals(1, tracker.udpCalls)
+    }
+
+    @Test
+    fun `offline decoder exception does not stop pipeline`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val capture = FakeCaptureEngine()
+        val decoder = FakeDecoder(listOf(tcpMetadata(), udpMetadata()), throwOnIndex = 0)
+        val tracker = FakeStreamTracker()
+        val pipeline = AuditPipeline(
+            config = testConfig(),
+            registry = ParserRegistry(),
+            eventBus = AuditEventBus(),
+            scope = this,
+            captureEngine = capture,
+            decoder = decoder,
+            streamTracker = tracker,
+            dispatcher = dispatcher
+        )
+
+        pipeline.startOffline("sample.pcap")
+        capture.rawPacketChannel.trySend(mockk())
+        capture.rawPacketChannel.trySend(mockk())
+        capture.rawPacketChannel.close()
+
+        advanceUntilIdle()
+
+        assertEquals(0, tracker.tcpCalls)
+        assertEquals(1, tracker.udpCalls)
+    }
+
+    @Test
     fun `stop delegates to capture engine`() = runTest {
         val capture = FakeCaptureEngine()
         val pipeline = AuditPipeline(
