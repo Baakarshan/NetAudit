@@ -126,6 +126,30 @@ class Pop3ParserTest {
         assertTrue(event.mailSize != null)
     }
 
+    @Test
+    fun `test response without header separator uses start`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("RETR 1\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+
+        val response =
+            "+OK\n" +
+                "Subject: Hi\n" +
+                "Body\n" +
+                ".\n"
+
+        val event = parser.parse(buildContext(response, Direction.SERVER_TO_CLIENT, sessionState))
+            as com.netaudit.model.AuditEvent.Pop3Event
+        assertEquals("Hi", event.subject)
+    }
+
+    @Test
+    fun `pop3 session state defaults`() {
+        val state = Pop3SessionState()
+        assertEquals(null, state.username)
+        assertTrue(!state.inRetrMode)
+        assertEquals(0, state.retrBuffer.length)
+    }
+
     private fun buildContext(
         payload: String,
         direction: Direction,

@@ -104,6 +104,94 @@ class DnsParserTest {
     }
 
     @Test
+    fun `test response without answers`() {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x8180.toShort())
+            .putShort(1)
+            .putShort(0)
+            .putShort(0)
+            .putShort(0)
+            .array()
+        val payload = header + encodeDomain("example.com") + ByteBuffer.allocate(4)
+            .putShort(1)
+            .putShort(1)
+            .array()
+
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.isResponse)
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
+    fun `test response with truncated answer`() {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x8180.toShort())
+            .putShort(1)
+            .putShort(1)
+            .putShort(0)
+            .putShort(0)
+            .array()
+        val payload = header + encodeDomain("example.com") + ByteBuffer.allocate(4)
+            .putShort(1)
+            .putShort(1)
+            .array() + byteArrayOf(1, 2, 3)
+
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.isResponse)
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
+    fun `test response with invalid A length`() {
+        val payload = buildDnsResponseWithRecord("example.com", 1, byteArrayOf(1, 2))
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
+    fun `test response with invalid AAAA length`() {
+        val payload = buildDnsResponseWithRecord("example.com", 28, byteArrayOf(1, 2, 3, 4))
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
+    fun `test response with short rdata remaining`() {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x8180.toShort())
+            .putShort(1)
+            .putShort(1)
+            .putShort(0)
+            .putShort(0)
+            .array()
+        val qname = encodeDomain("example.com")
+        val question = ByteBuffer.allocate(4)
+            .putShort(15)
+            .putShort(1)
+            .array()
+        val answer = ByteBuffer.allocate(12 + 2)
+            .putShort(0xC00C.toShort())
+            .putShort(15)
+            .putShort(1)
+            .putInt(60)
+            .putShort(10)
+            .put(byteArrayOf(1, 2))
+            .array()
+        val payload = header + qname + question + answer
+
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
     fun `test qdcount zero returns null`() {
         val header = ByteBuffer.allocate(12)
             .putShort(0x1234)
@@ -150,6 +238,33 @@ class DnsParserTest {
         val bad = byteArrayOf(10, 1, 2)
         val badName = method.invoke(parser, bad, 0) as String
         assertEquals("", badName)
+
+        val truncatedPtr = byteArrayOf(0xC0.toByte())
+        val truncatedName = method.invoke(parser, truncatedPtr, 0) as String
+        assertEquals("", truncatedName)
+
+        val selfPtr = byteArrayOf(0xC0.toByte(), 0x00)
+        val loopName = method.invoke(parser, selfPtr, 0) as String
+        assertEquals("", loopName)
+    }
+
+    @Test
+    fun `test qtype mapping`() {
+        val method = DnsParser::class.java.getDeclaredMethod("qtypeToString", Int::class.javaPrimitiveType)
+        method.isAccessible = true
+        val mapping = mapOf(
+            2 to "NS",
+            5 to "CNAME",
+            6 to "SOA",
+            12 to "PTR",
+            16 to "TXT",
+            33 to "SRV",
+            255 to "ANY"
+        )
+        mapping.forEach { (qtype, expected) ->
+            val result = method.invoke(parser, qtype) as String
+            assertEquals(expected, result)
+        }
     }
 
     private fun buildContext(

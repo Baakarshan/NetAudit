@@ -37,8 +37,6 @@ class HttpParser : ProtocolParser {
 
     private fun parseRequest(context: StreamContext, text: String): AuditEvent.HttpEvent? {
         val lines = text.split("\r\n")
-        if (lines.isEmpty()) return null
-
         val requestLine = lines[0]
         val parts = requestLine.split(" ", limit = 3)
         if (parts.size < 2) return null
@@ -80,8 +78,6 @@ class HttpParser : ProtocolParser {
 
     private fun parseResponse(context: StreamContext, text: String): AuditEvent.HttpEvent? {
         val lines = text.split("\r\n")
-        if (lines.isEmpty()) return null
-
         val statusLine = lines[0]
         if (!statusLine.startsWith("HTTP/")) return null
 

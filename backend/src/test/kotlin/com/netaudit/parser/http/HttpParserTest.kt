@@ -136,6 +136,16 @@ class HttpParserTest {
     }
 
     @Test
+    fun `test headers ignore invalid lines`() {
+        val payload = "GET / HTTP/1.1\r\nBadHeader\r\n:invalid\r\nHost: example.com\r\n\r\n"
+        val context = buildContext(payload)
+
+        val event = parser.parse(context) as? AuditEvent.HttpEvent
+        assertNotNull(event)
+        assertEquals("example.com", event.host)
+    }
+
+    @Test
     fun `test response invalid status line`() {
         val context = buildContext(
             payload = "NOTHTTP 200 OK\r\n\r\n",
@@ -159,6 +169,51 @@ class HttpParserTest {
         )
         val event = parser.parse(context)
         assertNull(event)
+    }
+
+    @Test
+    fun `test response status line missing code`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "http.lastMethod" to "GET",
+            "http.lastUrl" to "http://example.com"
+        )
+        val context = buildContext(
+            payload = "HTTP/1.1\r\n\r\n",
+            direction = Direction.SERVER_TO_CLIENT,
+            sessionState = sessionState
+        )
+        val event = parser.parse(context)
+        assertNull(event)
+    }
+
+    @Test
+    fun `test response missing last url`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "http.lastMethod" to "GET"
+        )
+        val context = buildContext(
+            payload = "HTTP/1.1 200 OK\r\n\r\n",
+            direction = Direction.SERVER_TO_CLIENT,
+            sessionState = sessionState
+        )
+        val event = parser.parse(context)
+        assertNull(event)
+    }
+
+    @Test
+    fun `test response missing last host uses empty`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "http.lastMethod" to "GET",
+            "http.lastUrl" to "http://example.com"
+        )
+        val context = buildContext(
+            payload = "HTTP/1.1 200 OK\r\n\r\n",
+            direction = Direction.SERVER_TO_CLIENT,
+            sessionState = sessionState
+        )
+        val event = parser.parse(context) as? AuditEvent.HttpEvent
+        assertNotNull(event)
+        assertEquals("", event.host)
     }
 
     @Test

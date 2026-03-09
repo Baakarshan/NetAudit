@@ -36,11 +36,28 @@ class EmailHeaderParserTest {
     }
 
     @Test
+    fun `test recipients filter blanks`() {
+        val headers = EmailHeaderParser.parseHeaders(
+            "To: a@test.com, ,  ,b@test.com\r\n\r\n"
+        )
+        assertEquals(listOf("a@test.com", "b@test.com"), headers.to)
+    }
+
+    @Test
     fun `test boundary extraction`() {
         val headers = EmailHeaderParser.parseHeaders(
             "Content-Type: multipart/mixed; boundary=\"----=_Part_123\"\r\n\r\n"
         )
         assertEquals("----=_Part_123", headers.boundary)
+    }
+
+    @Test
+    fun `test boundary missing returns null`() {
+        val headers = EmailHeaderParser.parseHeaders(
+            "Content-Type: text/plain\r\n\r\n"
+        )
+        assertEquals("text/plain", headers.contentType)
+        assertEquals(null, headers.boundary)
     }
 
     @Test
@@ -61,6 +78,37 @@ class EmailHeaderParserTest {
     }
 
     @Test
+    fun `test attachment extraction skips unnamed`() {
+        val boundary = "----=_Part_789"
+        val body =
+            "--$boundary\r\n" +
+                "Content-Type: application/pdf\r\n" +
+                "Content-Transfer-Encoding: base64\r\n\r\n" +
+                "SGVsbG8=\r\n" +
+                "--$boundary--\r\n"
+
+        val attachments = EmailHeaderParser.extractAttachments(body, boundary)
+        assertTrue(attachments.isEmpty())
+    }
+
+    @Test
+    fun `test attachment size ignores boundary lines`() {
+        val boundary = "----=_Part_999"
+        val body =
+            "--$boundary\r\n" +
+                "Content-Type: application/pdf; name=\"report.pdf\"\r\n" +
+                "Content-Transfer-Encoding: base64\r\n\r\n" +
+                "\r\n" +
+                "--not-a-boundary\r\n" +
+                "SGVsbG8=\r\n" +
+                "--$boundary--\r\n"
+
+        val attachments = EmailHeaderParser.extractAttachments(body, boundary)
+        assertEquals(1, attachments.size)
+        assertTrue(attachments[0].estimatedSize > 0)
+    }
+
+    @Test
     fun `test headers without recipients`() {
         val headers = EmailHeaderParser.parseHeaders(
             "From: alice@test.com\r\n\r\n"
@@ -69,6 +117,16 @@ class EmailHeaderParserTest {
         assertTrue(headers.to.isEmpty())
         assertEquals(null, headers.boundary)
         assertEquals(null, headers.contentType)
+        assertEquals("alice@test.com", headers.component1())
+        assertTrue(headers.component2().isEmpty())
+        assertEquals(null, headers.component3())
+    }
+
+    @Test
+    fun `test empty header text`() {
+        val headers = EmailHeaderParser.parseHeaders("\r\n")
+        assertEquals(null, headers.from)
+        assertTrue(headers.to.isEmpty())
     }
 
     @Test
@@ -77,6 +135,14 @@ class EmailHeaderParserTest {
             "Subject: Hello\r\n\tWorld\r\n\r\n"
         )
         assertEquals("Hello World", headers.subject)
+    }
+
+    @Test
+    fun `test header without colon is ignored`() {
+        val headers = EmailHeaderParser.parseHeaders(
+            "BadHeader\r\nFrom: alice@test.com\r\n\r\n"
+        )
+        assertEquals("alice@test.com", headers.from)
     }
 
     @Test

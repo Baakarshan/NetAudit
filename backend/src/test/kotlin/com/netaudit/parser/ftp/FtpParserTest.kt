@@ -181,6 +181,17 @@ class FtpParserTest {
     }
 
     @Test
+    fun `test RMD command updates pending state`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("RMD olddir\r\n", sessionState = sessionState))
+            as com.netaudit.model.AuditEvent.FtpEvent
+        assertEquals("RMD", event.command)
+        val session = sessionState["ftp.session"] as FtpSessionState
+        assertEquals("RMD", session.pendingCommand)
+        assertEquals("olddir", session.pendingArgument)
+    }
+
+    @Test
     fun `test response short line`() {
         val sessionState = mutableMapOf<String, Any>()
         val event = parser.parse(
@@ -224,6 +235,21 @@ class FtpParserTest {
     }
 
     @Test
+    fun `test response other code returns null`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "ftp.session" to FtpSessionState()
+        )
+        val event = parser.parse(
+            buildContext(
+                payload = "200 OK\r\n",
+                direction = Direction.SERVER_TO_CLIENT,
+                sessionState = sessionState
+            )
+        )
+        assertNull(event)
+    }
+
+    @Test
     fun `test PWD response without quotes keeps directory`() {
         val sessionState = mutableMapOf<String, Any>(
             "ftp.session" to FtpSessionState(currentDirectory = "/prev")
@@ -244,6 +270,14 @@ class FtpParserTest {
     fun `test non ftp text`() {
         val event = parser.parse(buildContext("HELLO"))
         assertNull(event)
+    }
+
+    @Test
+    fun `test blank lines are filtered`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("USER alice\r\n\r\nQUIT\r\n", sessionState = sessionState))
+            as com.netaudit.model.AuditEvent.FtpEvent
+        assertEquals("QUIT", event.command)
     }
 
     private fun buildContext(

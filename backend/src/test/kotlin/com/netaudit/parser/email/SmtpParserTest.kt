@@ -102,6 +102,16 @@ class SmtpParserTest {
     }
 
     @Test
+    fun `test data mode without terminator returns null`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("354 Go ahead\r\n", Direction.SERVER_TO_CLIENT, sessionState))
+
+        val data = "Subject: Hi\r\nBody"
+        val event = parser.parse(buildContext(data, Direction.CLIENT_TO_SERVER, sessionState))
+        assertNull(event)
+    }
+
+    @Test
     fun `test blank payload`() {
         val sessionState = mutableMapOf<String, Any>()
         val event = parser.parse(buildContext(" ", Direction.CLIENT_TO_SERVER, sessionState))
@@ -140,11 +150,67 @@ class SmtpParserTest {
     }
 
     @Test
+    fun `test data mode without header separator`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("354 Go ahead\r\n", Direction.SERVER_TO_CLIENT, sessionState))
+
+        val data =
+            "Subject: Hi\n" +
+                "Body\n" +
+                ".\n"
+
+        val event = parser.parse(buildContext(data, Direction.CLIENT_TO_SERVER, sessionState))
+            as com.netaudit.model.AuditEvent.SmtpEvent
+        assertEquals("Hi", event.subject)
+    }
+
+    @Test
     fun `test server response non numeric does not enable data mode`() {
         val sessionState = mutableMapOf<String, Any>()
         parser.parse(buildContext("ABC text\r\n", Direction.SERVER_TO_CLIENT, sessionState))
         val session = sessionState["smtp.session"] as SmtpSessionState
         assertTrue(!session.inDataMode)
+    }
+
+    @Test
+    fun `test server response not 354 keeps data mode false`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("250 OK\r\n", Direction.SERVER_TO_CLIENT, sessionState))
+        val session = sessionState["smtp.session"] as SmtpSessionState
+        assertTrue(!session.inDataMode)
+    }
+
+    @Test
+    fun `test helo command sets greeted`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("HELO example.com\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+        val session = sessionState["smtp.session"] as SmtpSessionState
+        assertEquals(SmtpPhase.GREETED, session.phase)
+    }
+
+    @Test
+    fun `test extractAddress variants`() {
+        val method = SmtpParser::class.java.getDeclaredMethod("extractAddress", String::class.java)
+        method.isAccessible = true
+        val withBrackets = method.invoke(parser, "<a@test.com>") as String
+        val withoutBrackets = method.invoke(parser, "plain@test.com") as String
+        assertEquals("a@test.com", withBrackets)
+        assertEquals("plain@test.com", withoutBrackets)
+    }
+
+    @Test
+    fun `smtp session state defaults and terminal`() {
+        val state = SmtpSessionState()
+        assertEquals(SmtpPhase.CONNECTED, state.phase)
+        assertTrue(state.to.isEmpty())
+        assertEquals(null, state.subject)
+        assertEquals(0, state.dataBuffer.length)
+        assertTrue(state.attachmentNames.isEmpty())
+        assertTrue(state.attachmentSizes.isEmpty())
+        state.dataBuffer.append("x")
+        assertEquals(1, state.dataBuffer.length)
+        assertTrue(!state.phase.isTerminal())
+        assertTrue(SmtpPhase.COMPLETED.isTerminal())
     }
 
     private fun buildContext(

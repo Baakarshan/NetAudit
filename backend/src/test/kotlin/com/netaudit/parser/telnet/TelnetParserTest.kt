@@ -61,6 +61,18 @@ class TelnetParserTest {
     }
 
     @Test
+    fun `test command with carriage return only`() {
+        val event = parser.parse(buildContext("pwd\r".toByteArray())) as com.netaudit.model.AuditEvent.TelnetEvent
+        assertEquals("pwd", event.commandLine)
+    }
+
+    @Test
+    fun `test command with line feed only`() {
+        val event = parser.parse(buildContext("id\n".toByteArray())) as com.netaudit.model.AuditEvent.TelnetEvent
+        assertEquals("id", event.commandLine)
+    }
+
+    @Test
     fun `test empty payload`() {
         val event = parser.parse(buildContext(byteArrayOf()))
         assertNull(event)
@@ -104,6 +116,15 @@ class TelnetParserTest {
     }
 
     @Test
+    fun `test server buffer no trimming when short`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("welcome".toByteArray(), Direction.SERVER_TO_CLIENT, sessionState))
+        assertNull(event)
+        val buffer = sessionState["telnet.serverBuffer"] as StringBuilder
+        assertTrue(buffer.length <= 256)
+    }
+
+    @Test
     fun `test server data with only IAC`() {
         val sessionState = mutableMapOf<String, Any>()
         val event = parser.parse(buildContext(byteArrayOf(0xFF.toByte(), 0xFE.toByte(), 0x01.toByte()), Direction.SERVER_TO_CLIENT, sessionState))
@@ -124,10 +145,25 @@ class TelnetParserTest {
     }
 
     @Test
+    fun `test IAC subnegotiation without terminator`() {
+        val payload = byteArrayOf(
+            0xFF.toByte(), 0xFA.toByte(), 0x01.toByte(), 0x02.toByte(), 0x03.toByte()
+        ) + "ls\r\n".toByteArray()
+        val event = parser.parse(buildContext(payload))
+        assertNull(event)
+    }
+
+    @Test
     fun `test IAC unknown command`() {
         val payload = byteArrayOf(0xFF.toByte(), 0x01.toByte()) + "ls\r\n".toByteArray()
         val event = parser.parse(buildContext(payload)) as com.netaudit.model.AuditEvent.TelnetEvent
         assertEquals("ls", event.commandLine)
+    }
+
+    @Test
+    fun `test trailing IAC byte`() {
+        val event = parser.parse(buildContext(byteArrayOf(0xFF.toByte())))
+        assertNull(event)
     }
 
     private fun buildContext(
