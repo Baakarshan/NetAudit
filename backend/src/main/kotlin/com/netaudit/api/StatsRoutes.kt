@@ -1,44 +1,36 @@
 package com.netaudit.api
 
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import com.netaudit.storage.AlertRepository
+import com.netaudit.storage.AuditRepository
+import io.ktor.server.application.call
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import io.ktor.server.routing.route
 import kotlinx.serialization.Serializable
-import com.netaudit.storage.DatabaseFactory
-import com.netaudit.storage.tables.AuditLogsTable
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.count
 
 @Serializable
-data class SystemStats(
-    val totalPackets: Long,
-    val protocolStats: Map<String, Long>,
-    val status: String = "running"
+data class DashboardStats(
+    val totalEvents: Long,
+    val protocolCounts: Map<String, Long>,
+    val alertCounts: Map<String, Long>
 )
 
-/**
- * 配置统计 API 路由
- */
-fun Route.statsRoutes() {
-    route("/api") {
-        get("/stats") {
-            val stats = DatabaseFactory.dbQuery {
-                val total = AuditLogsTable.selectAll().count()
+fun Route.statsRoutes(
+    auditRepository: AuditRepository,
+    alertRepository: AlertRepository
+) {
+    route("/api/stats") {
+        get("/dashboard") {
+            val totalEvents = auditRepository.countAll()
+            val protocolCounts = auditRepository.countByProtocol().mapKeys { it.key.name }
+            val alertCounts = alertRepository.countByLevel().mapKeys { it.key.name }
+            call.respond(DashboardStats(totalEvents, protocolCounts, alertCounts))
+        }
 
-                val protocolCounts = AuditLogsTable
-                    .select(AuditLogsTable.protocol, AuditLogsTable.id.count())
-                    .groupBy(AuditLogsTable.protocol)
-                    .associate {
-                        it[AuditLogsTable.protocol] to it[AuditLogsTable.id.count()]
-                    }
-
-                SystemStats(
-                    totalPackets = total,
-                    protocolStats = protocolCounts
-                )
-            }
-
-            call.respond(stats)
+        get("/protocols") {
+            val counts = auditRepository.countByProtocol().mapKeys { it.key.name }
+            call.respond(counts)
         }
     }
 }
