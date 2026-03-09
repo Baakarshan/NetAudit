@@ -2,7 +2,7 @@ package com.netaudit.api
 
 import com.netaudit.event.AuditEventBus
 import com.netaudit.model.AuditEvent
-import io.ktor.client.request.get
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.routing.routing
@@ -28,9 +28,6 @@ class SseRoutesTest {
             routing { sseRoutes(eventBus) }
         }
 
-        val response = client.get("/api/sse/events")
-        val channel = response.bodyAsChannel()
-
         val event = AuditEvent.HttpEvent(
             id = "event-1",
             timestamp = Clock.System.now(),
@@ -46,19 +43,21 @@ class SseRoutesTest {
             statusCode = 200
         )
 
-        coroutineScope {
-            launch { eventBus.emitAudit(event) }
+        client.prepareGet("/api/sse/events").execute { response ->
+            val channel = response.bodyAsChannel()
+            coroutineScope {
+                launch { eventBus.emitAudit(event) }
 
-            val line1 = withTimeout(1000) { channel.readUTF8Line() }
-            val line2 = withTimeout(1000) { channel.readUTF8Line() }
-            val line3 = withTimeout(1000) { channel.readUTF8Line() }
+                val line1 = withTimeout(1000) { channel.readUTF8Line() }
+                val line2 = withTimeout(1000) { channel.readUTF8Line() }
+                val line3 = withTimeout(1000) { channel.readUTF8Line() }
 
-            assertEquals("event: audit", line1)
-            assertNotNull(line2)
-            assertTrue(line2.startsWith("data: "))
-            assertEquals("", line3)
+                assertEquals("event: audit", line1)
+                assertNotNull(line2)
+                assertTrue(line2.startsWith("data: "))
+                assertEquals("", line3)
+            }
+            channel.cancel(CancellationException("SSE test completed"))
         }
-
-        channel.cancel(CancellationException("SSE test completed"))
     }
 }
