@@ -11,6 +11,7 @@ interface AuditRepository {
     suspend fun findBySourceIp(srcIp: String, page: Int = 0, size: Int = 50): List<AuditEvent>
     suspend fun findBetween(start: Instant, end: Instant, page: Int = 0, size: Int = 50): List<AuditEvent>
     suspend fun findRecent(limit: Int = 20): List<AuditEvent>
+    suspend fun findByEventId(eventId: String): AuditEvent?
     suspend fun countAll(): Long
     suspend fun countByProtocol(): Map<ProtocolType, Long>
 }

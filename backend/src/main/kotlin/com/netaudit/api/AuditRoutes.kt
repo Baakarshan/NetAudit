@@ -2,6 +2,7 @@ package com.netaudit.api
 
 import com.netaudit.model.ProtocolType
 import com.netaudit.storage.AuditRepository
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
@@ -39,6 +40,20 @@ fun Route.auditRoutes(repository: AuditRepository) {
             val limit = (call.parameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
             val events = repository.findRecent(limit)
             call.respond(events)
+        }
+
+        get("/{id}") {
+            val eventId = call.parameters["id"]
+            if (eventId.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing audit event id"))
+                return@get
+            }
+            val event = repository.findByEventId(eventId)
+            if (event == null) {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Audit event not found"))
+            } else {
+                call.respond(event)
+            }
         }
     }
 }

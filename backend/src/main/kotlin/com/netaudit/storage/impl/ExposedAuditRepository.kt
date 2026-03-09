@@ -84,6 +84,14 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
             .map { rowToEvent(it) }
     }
 
+    override suspend fun findByEventId(eventId: String): AuditEvent? = DatabaseFactory.dbQuery {
+        AuditLogsTable.selectAll()
+            .where { AuditLogsTable.eventId eq eventId }
+            .limit(1)
+            .map { rowToEvent(it) }
+            .firstOrNull()
+    }
+
     override suspend fun countAll(): Long = DatabaseFactory.dbQuery {
         AuditLogsTable.selectAll().count()
     }

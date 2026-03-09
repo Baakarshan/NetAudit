@@ -77,6 +77,37 @@ class AuditRoutesTest {
     }
 
     @Test
+    fun `GET audit by id`() = testApplication {
+        val auditRepo = mockk<AuditRepository>()
+        val sample = sampleHttpEvent()
+        coEvery { auditRepo.findByEventId(sample.id) } returns sample
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/${sample.id}")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val event = AppJson.decodeFromString(AuditEvent.serializer(), response.bodyAsText())
+        assertEquals(sample.id, event.id)
+    }
+
+    @Test
+    fun `GET audit by id not found`() = testApplication {
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findByEventId("missing") } returns null
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/missing")
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
     fun `GET stats dashboard`() = testApplication {
         val auditRepo = mockk<AuditRepository>()
         val alertRepo = mockk<AlertRepository>()
