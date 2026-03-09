@@ -35,11 +35,41 @@ import java.time.Duration
 private val logger = KotlinLogging.logger {}
 
 fun main(args: Array<String>) {
-    io.ktor.server.netty.EngineMain.main(args)
+    runServer(args)
 }
 
-fun Application.module() {
-    val config = loadConfig(environment.config)
+internal fun runServer(
+    args: Array<String>,
+    runner: (Array<String>) -> Unit = io.ktor.server.netty.EngineMain::main
+) {
+    if (System.getProperty("netaudit.disableMain") == "true") {
+        logger.info { "Main disabled by system property" }
+        return
+    }
+    runner(args)
+}
+
+fun Application.module(
+    config: com.netaudit.config.AppConfig = loadConfig(environment.config),
+    registry: ParserRegistry = ParserRegistry(),
+    eventBus: AuditEventBus = AuditEventBus(),
+    databaseInit: (com.netaudit.config.DatabaseConfig) -> Unit = DatabaseFactory::init,
+    auditRepoProvider: () -> com.netaudit.storage.AuditRepository = { ExposedAuditRepository(AppJson) },
+    alertRepoProvider: () -> com.netaudit.storage.AlertRepository = { ExposedAlertRepository() },
+    batchWriterStarter: (com.netaudit.storage.AuditRepository, AuditEventBus, Application) -> Unit =
+        { repo, bus, app ->
+            BatchWriter(repo, bus, app).start()
+        },
+    pipelineStarter: (com.netaudit.config.CaptureConfig, ParserRegistry, AuditEventBus, Application) -> Unit =
+        { capture, reg, bus, app ->
+            AuditPipeline(capture, reg, bus, app).start()
+        },
+    alertEngineStarter: (AuditEventBus, com.netaudit.storage.AlertRepository, Application) -> Unit =
+        { bus, repo, app ->
+            AlertEngine(bus, repo, app).start()
+        },
+    startBackground: Boolean = true
+) {
     logger.info { "NetAudit starting with config: $config" }
 
     // 配置插件
@@ -54,7 +84,6 @@ fun Application.module() {
     }
 
     // 初始化 ParserRegistry（Parser 注册在各 Spec 实现后补充）
-    val registry = ParserRegistry()
     registry.register(HttpParser())
     registry.register(FtpParser())
     registry.register(TelnetParser())
@@ -62,22 +91,20 @@ fun Application.module() {
     registry.register(SmtpParser())
     registry.register(Pop3Parser())
 
-    // 初始化事件总线
-    val eventBus = AuditEventBus()
-
     // 初始化数据库
-    DatabaseFactory.init(config.database)
+    databaseInit(config.database)
 
     // 初始化 Repository
-    val auditRepo = ExposedAuditRepository(AppJson)
-    val alertRepo = ExposedAlertRepository()
+    val auditRepo = auditRepoProvider()
+    val alertRepo = alertRepoProvider()
 
     // 告警引擎（Spec 9）
-    if (config.alertEnabled) {
-        val alertEngine = AlertEngine(eventBus, alertRepo, this)
-        alertEngine.start()
-    } else {
+    if (config.alertEnabled && startBackground) {
+        alertEngineStarter(eventBus, alertRepo, this)
+    } else if (!config.alertEnabled) {
         logger.info { "AlertEngine disabled by config" }
+    } else {
+        logger.info { "AlertEngine skipped (startBackground=false)" }
     }
 
     // 配置路由
@@ -92,11 +119,13 @@ fun Application.module() {
         captureWebSocket(eventBus)
     }
 
-    // 批量写入器（Spec 3）
-    val batchWriter = BatchWriter(auditRepo, eventBus, this)
-    batchWriter.start()
+    if (startBackground) {
+        // 批量写入器（Spec 3）
+        batchWriterStarter(auditRepo, eventBus, this)
 
-    // 启动捕获管道（Spec 2）
-    val pipeline = AuditPipeline(config.capture, registry, eventBus, this)
-    pipeline.start()
+        // 启动捕获管道（Spec 2）
+        pipelineStarter(config.capture, registry, eventBus, this)
+    } else {
+        logger.info { "Background services skipped (startBackground=false)" }
+    }
 }
