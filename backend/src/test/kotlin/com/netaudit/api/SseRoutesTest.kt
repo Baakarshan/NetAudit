@@ -10,7 +10,7 @@ import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
@@ -47,10 +47,7 @@ class SseRoutesTest {
         client.prepareGet("/api/sse/events").execute { response ->
             val channel = response.bodyAsChannel()
             coroutineScope {
-                withTimeout(1000) {
-                    eventBus.auditEvents.subscriptionCount.first { it > 0 }
-                }
-
+                delay(50)
                 launch { eventBus.emitAudit(event) }
 
                 val line1 = withTimeout(1000) { channel.readUTF8Line() }
