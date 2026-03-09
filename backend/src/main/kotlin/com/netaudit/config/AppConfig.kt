@@ -25,21 +25,43 @@ data class AppConfig(
 )
 
 fun loadConfig(config: ApplicationConfig): AppConfig {
+    val env = System.getenv()
+
+    val databaseUrl = env["DATABASE_URL"] ?: config.property("database.url").getString()
+    val databaseDriver = env["DATABASE_DRIVER"] ?: config.property("database.driver").getString()
+    val databaseUser = env["DATABASE_USER"] ?: config.property("database.user").getString()
+    val databasePassword = env["DATABASE_PASSWORD"] ?: config.property("database.password").getString()
+    val databasePoolSize = env["DATABASE_MAX_POOL_SIZE"]?.toIntOrNull()
+        ?: config.property("database.maxPoolSize").getString().toInt()
+
+    val captureInterface = env["CAPTURE_INTERFACE"] ?: config.property("capture.interface").getString()
+    val capturePromiscuous = env["CAPTURE_PROMISCUOUS"]?.toBoolean()
+        ?: config.property("capture.promiscuous").getString().toBoolean()
+    val captureSnapshot = env["CAPTURE_SNAPSHOT_LENGTH"]?.toIntOrNull()
+        ?: config.property("capture.snapshotLength").getString().toInt()
+    val captureReadTimeout = env["CAPTURE_READ_TIMEOUT"]?.toIntOrNull()
+        ?: config.property("capture.readTimeout").getString().toInt()
+    val captureChannelBuffer = env["CAPTURE_CHANNEL_BUFFER_SIZE"]?.toIntOrNull()
+        ?: config.property("capture.channelBufferSize").getString().toInt()
+
+    val alertEnabled = env["ALERT_ENABLED"]?.toBoolean()
+        ?: config.property("alert.enabled").getString().toBoolean()
+
     return AppConfig(
         database = DatabaseConfig(
-            url = config.property("database.url").getString(),
-            driver = config.property("database.driver").getString(),
-            user = config.property("database.user").getString(),
-            password = config.property("database.password").getString(),
-            maxPoolSize = config.property("database.maxPoolSize").getString().toInt()
+            url = databaseUrl,
+            driver = databaseDriver,
+            user = databaseUser,
+            password = databasePassword,
+            maxPoolSize = databasePoolSize
         ),
         capture = CaptureConfig(
-            interfaceName = config.property("capture.interface").getString(),
-            promiscuous = config.property("capture.promiscuous").getString().toBoolean(),
-            snapshotLength = config.property("capture.snapshotLength").getString().toInt(),
-            readTimeoutMs = config.property("capture.readTimeout").getString().toInt(),
-            channelBufferSize = config.property("capture.channelBufferSize").getString().toInt()
+            interfaceName = captureInterface,
+            promiscuous = capturePromiscuous,
+            snapshotLength = captureSnapshot,
+            readTimeoutMs = captureReadTimeout,
+            channelBufferSize = captureChannelBuffer
         ),
-        alertEnabled = config.property("alert.enabled").getString().toBoolean()
+        alertEnabled = alertEnabled
     )
 }
