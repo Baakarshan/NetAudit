@@ -53,6 +53,40 @@ class KtorPluginsTest {
     }
 
     @Test
+    fun `unexpected error without message uses default`() = testApplication {
+        environment { config = MapApplicationConfig("ktor.application.modules.size" to "0") }
+        application {
+            configurePlugins()
+            routing {
+                get("/boom") {
+                    throw RuntimeException()
+                }
+            }
+        }
+
+        val response = client.get("/boom")
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+        assertTrue(response.bodyAsText().contains("Internal Server Error"))
+    }
+
+    @Test
+    fun `illegal argument without message uses default`() = testApplication {
+        environment { config = MapApplicationConfig("ktor.application.modules.size" to "0") }
+        application {
+            configurePlugins()
+            routing {
+                get("/bad") {
+                    throw IllegalArgumentException()
+                }
+            }
+        }
+
+        val response = client.get("/bad")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("Bad Request"))
+    }
+
+    @Test
     fun `cors preflight returns allow origin`() = testApplication {
         environment { config = MapApplicationConfig("ktor.application.modules.size" to "0") }
         application {

@@ -147,6 +147,22 @@ class AuditRoutesTest {
     }
 
     @Test
+    fun `GET audit logs invalid page size uses defaults`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findAll(0, 50) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/logs?page=abc&size=abc")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findAll(0, 50) }
+    }
+
+    @Test
     fun `GET audit logs ignores partial time range`() = testApplication {
         environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
@@ -193,6 +209,22 @@ class AuditRoutesTest {
         val response = client.get("/api/audit/recent?limit=1000")
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { auditRepo.findRecent(100) }
+    }
+
+    @Test
+    fun `GET audit recent invalid limit uses default`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findRecent(20) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/recent?limit=abc")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findRecent(20) }
     }
 
     @Test
@@ -301,6 +333,22 @@ class AuditRoutesTest {
         val response = client.get("/api/alerts/recent?limit=3")
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { alertRepo.findRecent(3) }
+    }
+
+    @Test
+    fun `GET alerts recent invalid limit uses default`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { alertRepo.findRecent(20) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { alertRoutes(alertRepo) }
+        }
+
+        val response = client.get("/api/alerts/recent?limit=abc")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { alertRepo.findRecent(20) }
     }
 
     @Test
