@@ -73,8 +73,12 @@ fun Application.module() {
     val alertRepo = ExposedAlertRepository()
 
     // 告警引擎（Spec 9）
-    val alertEngine = AlertEngine(eventBus, alertRepo, this)
-    alertEngine.start()
+    if (config.alertEnabled) {
+        val alertEngine = AlertEngine(eventBus, alertRepo, this)
+        alertEngine.start()
+    } else {
+        logger.info { "AlertEngine disabled by config" }
+    }
 
     // 配置路由
     routing {
