@@ -53,6 +53,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+!docker/.env
 
 # Database
 *.db
@@ -65,6 +66,7 @@ coverage/
 # Pcap files
 *.pcap
 *.pcapng
+!test-data/sample.pcap
 
 # Temp
 tmp/
