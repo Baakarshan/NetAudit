@@ -61,6 +61,8 @@ Thumbs.db
 
 # Test
 coverage/
+!backend/src/test/kotlin/com/netaudit/coverage/
+!backend/src/test/kotlin/com/netaudit/coverage/**
 .nyc_output/
 
 # Pcap files
