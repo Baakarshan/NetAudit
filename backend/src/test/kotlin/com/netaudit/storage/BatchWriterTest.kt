@@ -154,6 +154,53 @@ class BatchWriterTest {
     }
 
     @Test
+    fun `stop without start is safe`() = runTest {
+        val mockRepo = mockk<AuditRepository>()
+        coEvery { mockRepo.saveBatch(any()) } just Runs
+
+        val eventBus = AuditEventBus()
+        val writer = BatchWriter(
+            repository = mockRepo,
+            eventBus = eventBus,
+            scope = this,
+            batchSize = 1,
+            flushIntervalMs = 1000
+        )
+
+        writer.stop()
+        assertTrue(true)
+    }
+
+    @Test
+    fun `retry succeeds after transient failure`() = runTest {
+        val mockRepo = mockk<AuditRepository>()
+        coEvery { mockRepo.saveBatch(any()) } throws RuntimeException("db down") andThen Unit
+
+        val eventBus = AuditEventBus()
+        val writer = BatchWriter(
+            repository = mockRepo,
+            eventBus = eventBus,
+            scope = this,
+            batchSize = 1,
+            flushIntervalMs = 1
+        )
+        writer.start()
+
+        try {
+            eventBus.emitAudit(httpEvent("retry-once"))
+            runCurrent()
+
+            advanceTimeBy(5)
+            runCurrent()
+
+            writer.shutdown()
+            coVerify(atLeast = 2) { mockRepo.saveBatch(any()) }
+        } finally {
+            writer.stop()
+        }
+    }
+
+    @Test
     fun `dead letter queue write failure is handled`() = runTest {
         val mockRepo = mockk<AuditRepository>()
         coEvery { mockRepo.saveBatch(any()) } throws RuntimeException("db down")
