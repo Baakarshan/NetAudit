@@ -137,6 +137,39 @@ class ExposedAuditRepositoryTest {
         assertNotEquals(page0[0].id, page1[0].id)
     }
 
+    @Test
+    fun `empty repository returns empty results`() = runTest {
+        val emptyAll = repository.findAll()
+        assertTrue(emptyAll.isEmpty())
+
+        val emptyProtocol = repository.findByProtocol(ProtocolType.HTTP)
+        assertTrue(emptyProtocol.isEmpty())
+
+        val emptySrc = repository.findBySourceIp("0.0.0.0")
+        assertTrue(emptySrc.isEmpty())
+
+        val emptyBetween = repository.findBetween(
+            Clock.System.now() - 1.seconds,
+            Clock.System.now()
+        )
+        assertTrue(emptyBetween.isEmpty())
+
+        val emptyRecent = repository.findRecent(5)
+        assertTrue(emptyRecent.isEmpty())
+
+        val missing = repository.findByEventId("missing")
+        assertEquals(null, missing)
+
+        assertEquals(0L, repository.countAll())
+        assertTrue(repository.countByProtocol().isEmpty())
+    }
+
+    @Test
+    fun `saveBatch ignores empty list`() = runTest {
+        repository.saveBatch(emptyList())
+        assertEquals(0L, repository.countAll())
+    }
+
     private fun httpEvent(
         id: String,
         srcIp: String = "192.168.1.100",
