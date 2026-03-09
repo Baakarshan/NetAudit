@@ -59,4 +59,52 @@ class EmailHeaderParserTest {
         assertEquals("report.pdf", attachments[0].filename)
         assertTrue(attachments[0].estimatedSize > 0)
     }
+
+    @Test
+    fun `test headers without recipients`() {
+        val headers = EmailHeaderParser.parseHeaders(
+            "From: alice@test.com\r\n\r\n"
+        )
+        assertEquals("alice@test.com", headers.from)
+        assertTrue(headers.to.isEmpty())
+        assertEquals(null, headers.boundary)
+        assertEquals(null, headers.contentType)
+    }
+
+    @Test
+    fun `test tab folded header`() {
+        val headers = EmailHeaderParser.parseHeaders(
+            "Subject: Hello\r\n\tWorld\r\n\r\n"
+        )
+        assertEquals("Hello World", headers.subject)
+    }
+
+    @Test
+    fun `test boundary without quotes`() {
+        val headers = EmailHeaderParser.parseHeaders(
+            "Content-Type: Multipart/Mixed; boundary=abc123\r\n\r\n"
+        )
+        assertEquals("abc123", headers.boundary)
+    }
+
+    @Test
+    fun `test attachment extraction uses name field`() {
+        val boundary = "----=_Part_456"
+        val body =
+            "--$boundary\r\n" +
+                "Content-Type: application/pdf; name=\"report.pdf\"\r\n" +
+                "Content-Transfer-Encoding: base64\r\n\r\n" +
+                "SGVsbG8=\r\n" +
+                "--$boundary--\r\n"
+
+        val attachments = EmailHeaderParser.extractAttachments(body, boundary)
+        assertEquals(1, attachments.size)
+        assertEquals("report.pdf", attachments[0].filename)
+    }
+
+    @Test
+    fun `test attachment extraction without boundary`() {
+        val attachments = EmailHeaderParser.extractAttachments("body", null)
+        assertTrue(attachments.isEmpty())
+    }
 }
