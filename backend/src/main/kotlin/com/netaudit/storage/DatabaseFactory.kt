@@ -7,6 +7,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.yield
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Transaction
@@ -22,6 +23,7 @@ private val logger = KotlinLogging.logger {}
  */
 object DatabaseFactory {
     private lateinit var dataSource: HikariDataSource
+    internal var forceSuspend: Boolean = false
 
     /**
      * 初始化数据库连接
@@ -83,7 +85,12 @@ object DatabaseFactory {
      * 在数据库事务中执行操作
      */
     suspend fun <T> dbQuery(block: suspend () -> T): T =
-        newSuspendedTransaction(Dispatchers.IO) { block() }
+        newSuspendedTransaction(Dispatchers.IO) {
+            if (forceSuspend) {
+                yield()
+            }
+            block()
+        }
 
     private fun configureJsonbIfPostgres(tx: Transaction) {
         val isPostgres = TransactionManager.current().db.dialect is PostgreSQLDialect

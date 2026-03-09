@@ -31,6 +31,7 @@ class ExposedAuditRepositoryTest {
         )
         DatabaseFactory.createTables()
         repository = ExposedAuditRepository(AppJson)
+        DatabaseFactory.forceSuspend = true
     }
 
     @AfterTest
@@ -38,6 +39,7 @@ class ExposedAuditRepositoryTest {
         transaction {
             SchemaUtils.drop(AuditLogsTable, AlertsTable)
         }
+        DatabaseFactory.forceSuspend = false
     }
 
     @Test

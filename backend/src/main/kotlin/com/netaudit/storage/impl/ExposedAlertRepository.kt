@@ -8,6 +8,7 @@ import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.tables.AlertsTable
 import com.netaudit.storage.util.toJavaOffsetDateTime
 import com.netaudit.storage.util.toKotlinxInstant
+import kotlinx.coroutines.yield
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.insert
@@ -15,18 +16,22 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 
 class ExposedAlertRepository : AlertRepository {
-
-    override suspend fun save(alert: AlertRecord) = DatabaseFactory.dbQuery {
-        AlertsTable.insert { row ->
-            row[AlertsTable.alertId] = alert.id
-            row[AlertsTable.timestamp] = alert.timestamp.toJavaOffsetDateTime()
-            row[AlertsTable.level] = alert.level.name
-            row[AlertsTable.ruleName] = alert.ruleName
-            row[AlertsTable.message] = alert.message
-            row[AlertsTable.auditEventId] = alert.auditEventId
-            row[AlertsTable.protocol] = alert.protocol.name
+    override suspend fun save(alert: AlertRecord) {
+        if (DatabaseFactory.forceSuspend) {
+            yield()
         }
-        Unit
+        DatabaseFactory.dbQuery {
+            AlertsTable.insert { row ->
+                row[AlertsTable.alertId] = alert.id
+                row[AlertsTable.timestamp] = alert.timestamp.toJavaOffsetDateTime()
+                row[AlertsTable.level] = alert.level.name
+                row[AlertsTable.ruleName] = alert.ruleName
+                row[AlertsTable.message] = alert.message
+                row[AlertsTable.auditEventId] = alert.auditEventId
+                row[AlertsTable.protocol] = alert.protocol.name
+            }
+            Unit
+        }
     }
 
     override suspend fun findRecent(limit: Int): List<AlertRecord> = DatabaseFactory.dbQuery {

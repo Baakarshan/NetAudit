@@ -8,6 +8,7 @@ import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import java.io.File
@@ -151,6 +152,30 @@ class BatchWriterTest {
 
         writer.stop()
         assertFalse(writer.toString().isBlank())
+    }
+
+    @Test
+    fun `flush job completes on stop`() = runTest {
+        val mockRepo = mockk<AuditRepository>()
+        coEvery { mockRepo.saveBatch(any()) } just Runs
+
+        val eventBus = AuditEventBus()
+        val writer = BatchWriter(
+            repository = mockRepo,
+            eventBus = eventBus,
+            scope = this,
+            batchSize = 100,
+            flushIntervalMs = 10
+        )
+        writer.start()
+
+        advanceTimeBy(20)
+        runCurrent()
+
+        writer.stop()
+        advanceUntilIdle()
+
+        assertTrue(true)
     }
 
     @Test

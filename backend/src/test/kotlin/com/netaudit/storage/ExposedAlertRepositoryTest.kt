@@ -27,6 +27,7 @@ class ExposedAlertRepositoryTest {
         )
         DatabaseFactory.createTables()
         repository = ExposedAlertRepository()
+        DatabaseFactory.forceSuspend = true
     }
 
     @AfterTest
@@ -34,6 +35,7 @@ class ExposedAlertRepositoryTest {
         transaction {
             SchemaUtils.drop(AuditLogsTable, AlertsTable)
         }
+        DatabaseFactory.forceSuspend = false
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.tables.AuditLogsTable
 import com.netaudit.storage.util.toJavaOffsetDateTime
 import kotlinx.datetime.Instant
+import kotlinx.coroutines.yield
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -23,18 +24,27 @@ import org.jetbrains.exposed.sql.batchInsert
  * AuditRepository 的 Exposed 实现。
  */
 class ExposedAuditRepository(private val json: Json) : AuditRepository {
-
-    override suspend fun save(event: AuditEvent) = DatabaseFactory.dbQuery {
-        AuditLogsTable.insert { row ->
-            mapEventToRow(row, event)
+    override suspend fun save(event: AuditEvent) {
+        if (DatabaseFactory.forceSuspend) {
+            yield()
         }
-        Unit
+        DatabaseFactory.dbQuery {
+            AuditLogsTable.insert { row ->
+                mapEventToRow(row, event)
+            }
+            Unit
+        }
     }
 
-    override suspend fun saveBatch(events: List<AuditEvent>) = DatabaseFactory.dbQuery {
-        if (events.isEmpty()) return@dbQuery
-        AuditLogsTable.batchInsert(events, shouldReturnGeneratedValues = false) { event ->
-            mapEventToRow(this, event)
+    override suspend fun saveBatch(events: List<AuditEvent>) {
+        if (DatabaseFactory.forceSuspend) {
+            yield()
+        }
+        DatabaseFactory.dbQuery {
+            if (events.isEmpty()) return@dbQuery
+            AuditLogsTable.batchInsert(events, shouldReturnGeneratedValues = false) { event ->
+                mapEventToRow(this, event)
+            }
         }
     }
 

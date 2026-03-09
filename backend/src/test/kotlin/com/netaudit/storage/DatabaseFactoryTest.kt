@@ -42,6 +42,10 @@ class DatabaseFactoryTest {
 
     @Test
     fun `close without init is safe`() {
+        val field = DatabaseFactory::class.java.getDeclaredField("dataSource")
+        field.isAccessible = true
+        field.set(DatabaseFactory, null)
+
         DatabaseFactory.close()
         assertTrue(true)
     }
