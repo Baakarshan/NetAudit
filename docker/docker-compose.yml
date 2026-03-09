@@ -1,7 +1,9 @@
+version: "3.9"
+
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: netaudit-postgres
+    image: postgres:15-alpine
+    container_name: netaudit-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-netaudit}
       POSTGRES_USER: ${POSTGRES_USER:-netaudit}
@@ -9,50 +11,129 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netaudit}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
-      - netaudit-network
+      - audit-net
 
   backend:
     build:
-      context: ../backend
-      dockerfile: ../docker/Dockerfile.backend
+      context: ..
+      dockerfile: docker/Dockerfile.backend
     container_name: netaudit-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      DB_HOST: ${DB_HOST:-postgres}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_NAME: ${DB_NAME:-netaudit}
-      DB_USER: ${DB_USER:-netaudit}
-      DB_PASSWORD: ${DB_PASSWORD:-netaudit}
+      DATABASE_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB:-netaudit}"
+      DATABASE_USER: ${POSTGRES_USER:-netaudit}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-netaudit}
+      CAPTURE_INTERFACE: eth0
+      CAPTURE_PROMISCUOUS: "true"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
-    depends_on:
-      - postgres
-    networks:
-      - netaudit-network
     cap_add:
-      - NET_ADMIN
       - NET_RAW
+      - NET_ADMIN
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.10
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: ../docker/Dockerfile.frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
-        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8080}
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
     container_name: netaudit-frontend
-    ports:
-      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
     networks:
-      - netaudit-network
+      - audit-net
+
+  test-nginx:
+    build:
+      context: ./test-servers/nginx
+    container_name: netaudit-test-nginx
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.20
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  test-ftp:
+    build:
+      context: ./test-servers/ftp
+    container_name: netaudit-test-ftp
+    environment:
+      FTP_USER: alice
+      FTP_PASS: password123
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.11
+
+  test-telnet:
+    build:
+      context: ./test-servers/telnet
+    container_name: netaudit-test-telnet
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.12
+
+  test-dns:
+    build:
+      context: ./test-servers/dns
+    container_name: netaudit-test-dns
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.13
+
+  test-smtp:
+    build:
+      context: ./test-servers/smtp
+    container_name: netaudit-test-smtp
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.14
+
+  test-pop3:
+    build:
+      context: ./test-servers/pop3
+    container_name: netaudit-test-pop3
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.15
+
+  test-client:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test-client
+    container_name: netaudit-test-client
+    depends_on:
+      - test-nginx
+      - test-ftp
+      - test-telnet
+      - test-dns
+      - test-smtp
+      - test-pop3
+    networks:
+      audit-net:
+        ipv4_address: 172.28.0.100
 
 volumes:
-  postgres_data:
+  pgdata:
 
 networks:
-  netaudit-network:
+  audit-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
