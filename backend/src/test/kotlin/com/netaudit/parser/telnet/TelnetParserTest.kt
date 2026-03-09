@@ -10,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TelnetParserTest {
     private val parser = TelnetParser()
@@ -69,6 +70,57 @@ class TelnetParserTest {
     fun `test pure IAC`() {
         val event = parser.parse(buildContext(byteArrayOf(0xFF.toByte(), 0xFB.toByte(), 0x01.toByte())))
         assertNull(event)
+    }
+
+    @Test
+    fun `test blank command line`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("\r\n".toByteArray(), Direction.CLIENT_TO_SERVER, sessionState))
+        assertNull(event)
+        val buffer = sessionState["telnet.inputBuffer"] as StringBuilder
+        assertTrue(buffer.isEmpty())
+    }
+
+    @Test
+    fun `test username prompt variant`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("username: ".toByteArray(), Direction.SERVER_TO_CLIENT, sessionState))
+        val event = parser.parse(buildContext("bob\r\n".toByteArray(), Direction.CLIENT_TO_SERVER, sessionState))
+        assertNull(event)
+
+        val commandEvent = parser.parse(buildContext("id\r\n".toByteArray(), Direction.CLIENT_TO_SERVER, sessionState))
+            as com.netaudit.model.AuditEvent.TelnetEvent
+        assertEquals("bob", commandEvent.username)
+    }
+
+    @Test
+    fun `test server buffer trimming`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val longText = "x".repeat(300).toByteArray()
+        val event = parser.parse(buildContext(longText, Direction.SERVER_TO_CLIENT, sessionState))
+        assertNull(event)
+        val buffer = sessionState["telnet.serverBuffer"] as StringBuilder
+        assertTrue(buffer.length <= 256)
+    }
+
+    @Test
+    fun `test server data with only IAC`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext(byteArrayOf(0xFF.toByte(), 0xFE.toByte(), 0x01.toByte()), Direction.SERVER_TO_CLIENT, sessionState))
+        assertNull(event)
+    }
+
+    @Test
+    fun `test IAC subnegotiation and literal`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val payload = byteArrayOf(
+            0xFF.toByte(), 0xFA.toByte(), 0x01.toByte(), 0x02.toByte(),
+            0xFF.toByte(), 0xF0.toByte(),
+            0xFF.toByte(), 0xFF.toByte()
+        ) + "ls\r\n".toByteArray()
+        val event = parser.parse(buildContext(payload, Direction.CLIENT_TO_SERVER, sessionState))
+            as com.netaudit.model.AuditEvent.TelnetEvent
+        assertTrue(event.commandLine.contains("ls"))
     }
 
     private fun buildContext(
