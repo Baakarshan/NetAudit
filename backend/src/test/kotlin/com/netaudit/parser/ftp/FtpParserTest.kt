@@ -161,6 +161,26 @@ class FtpParserTest {
     }
 
     @Test
+    fun `test STOR command updates transfer phase`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("STOR file.bin\r\n", sessionState = sessionState))
+            as com.netaudit.model.AuditEvent.FtpEvent
+        assertEquals("STOR", event.command)
+        val session = sessionState["ftp.session"] as FtpSessionState
+        assertEquals(FtpPhase.TRANSFER, session.phase)
+    }
+
+    @Test
+    fun `test MKD command updates pending state`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("MKD newdir\r\n", sessionState = sessionState))
+            as com.netaudit.model.AuditEvent.FtpEvent
+        assertEquals("MKD", event.command)
+        val session = sessionState["ftp.session"] as FtpSessionState
+        assertEquals("MKD", session.pendingCommand)
+    }
+
+    @Test
     fun `test response short line`() {
         val sessionState = mutableMapOf<String, Any>()
         val event = parser.parse(

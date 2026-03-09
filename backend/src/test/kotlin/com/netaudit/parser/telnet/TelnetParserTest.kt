@@ -123,6 +123,13 @@ class TelnetParserTest {
         assertTrue(event.commandLine.contains("ls"))
     }
 
+    @Test
+    fun `test IAC unknown command`() {
+        val payload = byteArrayOf(0xFF.toByte(), 0x01.toByte()) + "ls\r\n".toByteArray()
+        val event = parser.parse(buildContext(payload)) as com.netaudit.model.AuditEvent.TelnetEvent
+        assertEquals("ls", event.commandLine)
+    }
+
     private fun buildContext(
         payload: ByteArray,
         direction: Direction = Direction.CLIENT_TO_SERVER,
