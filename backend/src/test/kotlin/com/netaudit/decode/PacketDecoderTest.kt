@@ -1,6 +1,8 @@
 package com.netaudit.decode
 
 import com.netaudit.model.TransportProtocol
+import io.mockk.every
+import io.mockk.mockk
 import org.pcap4j.packet.*
 import org.pcap4j.packet.namednumber.*
 import org.pcap4j.util.MacAddress
@@ -302,6 +304,55 @@ class PacketDecoderTest {
     }
 
     @Test
+    fun `decode uses get ipv4 when payload not ipv4`() {
+        val ipPacket = buildUdpIpPacket(byteArrayOf(1, 2, 3, 4))
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(UnknownPacket.Builder().rawData(byteArrayOf(1)))
+            .paddingAtBuild(true)
+            .build()
+
+        val udpPacket = ipPacket.payload as UdpPacket
+        val wrapped = IpGetterPacket(ethPacket, ipPacket, udpPacket)
+        val metadata = decoder.decode(wrapped)
+
+        assertNotNull(metadata)
+        assertEquals(TransportProtocol.UDP, metadata.ipProtocol)
+    }
+
+    @Test
+    fun `decode uses parseIpFromRaw when payload invalid`() {
+        val ipPacket = buildUdpIpPacket(byteArrayOf(1, 2, 3, 4))
+        val raw = ByteArray(14 + ipPacket.rawData.size)
+        raw[12] = 0x08
+        raw[13] = 0x00
+        System.arraycopy(ipPacket.rawData, 0, raw, 14, ipPacket.rawData.size)
+
+        val header = mockk<EthernetPacket.EthernetHeader>()
+        every { header.type } returns EtherType.IPV4
+        every { header.srcAddr } returns MacAddress.getByName("00:11:22:33:44:55")
+        every { header.dstAddr } returns MacAddress.getByName("AA:BB:CC:DD:EE:FF")
+
+        val payload = mockk<Packet>()
+        every { payload.rawData } returns byteArrayOf(1)
+
+        val udpPacket = ipPacket.payload as UdpPacket
+        val ethPacket = mockk<EthernetPacket>()
+        every { ethPacket.header } returns header
+        every { ethPacket.payload } returns payload
+        every { ethPacket.rawData } returns raw
+        every { ethPacket.get(IpV4Packet::class.java) } returns null
+        every { ethPacket.get(TcpPacket::class.java) } returns null
+        every { ethPacket.get(UdpPacket::class.java) } returns udpPacket
+
+        val metadata = decoder.decode(ethPacket)
+        assertNotNull(metadata)
+        assertEquals(TransportProtocol.UDP, metadata.ipProtocol)
+    }
+
+    @Test
     fun `decode returns null for non ethernet packet`() {
         val packet = UnknownPacket.Builder().rawData(byteArrayOf(1, 2, 3)).build()
         val metadata = decoder.decode(packet)
@@ -423,6 +474,111 @@ class PacketDecoderTest {
         val result = method.invoke(decoder, ethPacket) as IpV4Packet?
 
         assertNotNull(result)
+    }
+
+    @Test
+    fun `parseIpFromPayload returns null when payload missing`() {
+        val header = mockk<EthernetPacket.EthernetHeader>()
+        every { header.type } returns EtherType.IPV4
+        val ethPacket = mockk<EthernetPacket>()
+        every { ethPacket.header } returns header
+        every { ethPacket.payload } returns null
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromPayload",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `parseIpFromPayload returns null when raw data missing`() {
+        val header = mockk<EthernetPacket.EthernetHeader>()
+        every { header.type } returns EtherType.IPV4
+        val payload = mockk<Packet>()
+        every { payload.rawData } returns null
+        val ethPacket = mockk<EthernetPacket>()
+        every { ethPacket.header } returns header
+        every { ethPacket.payload } returns payload
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromPayload",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `parseIpFromRaw returns null when raw data missing`() {
+        val header = mockk<EthernetPacket.EthernetHeader>()
+        every { header.type } returns EtherType.IPV4
+        val ethPacket = mockk<EthernetPacket>()
+        every { ethPacket.header } returns header
+        every { ethPacket.rawData } returns null
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromRaw",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `decode handles tcp payload null`() {
+        val ethPacket = buildTcpEthernetPacket("ping".toByteArray())
+        val tcpHeader = mockk<TcpPacket.TcpHeader>()
+        every { tcpHeader.srcPort.valueAsInt() } returns 54321
+        every { tcpHeader.dstPort.valueAsInt() } returns 80
+        every { tcpHeader.syn } returns false
+        every { tcpHeader.ack } returns true
+        every { tcpHeader.fin } returns false
+        every { tcpHeader.rst } returns false
+        every { tcpHeader.psh } returns false
+        every { tcpHeader.sequenceNumberAsLong } returns 1L
+        every { tcpHeader.acknowledgmentNumberAsLong } returns 2L
+
+        val tcpPacket = mockk<TcpPacket>()
+        every { tcpPacket.header } returns tcpHeader
+        every { tcpPacket.payload } returns null
+
+        val wrapped = TcpGetterPacket(ethPacket, tcpPacket)
+        val metadata = decoder.decode(wrapped)
+
+        assertNotNull(metadata)
+        assertTrue(metadata.payload.isEmpty())
+    }
+
+    @Test
+    fun `decode returns null for udp payload null`() {
+        val ipPacket = buildUdpIpPacket(byteArrayOf(1, 2, 3))
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(UnknownPacket.Builder().rawData(ipPacket.rawData))
+            .paddingAtBuild(true)
+            .build()
+
+        val udpHeader = mockk<UdpPacket.UdpHeader>()
+        every { udpHeader.srcPort.valueAsInt() } returns 54321
+        every { udpHeader.dstPort.valueAsInt() } returns 53
+        val udpPacket = mockk<UdpPacket>()
+        every { udpPacket.header } returns udpHeader
+        every { udpPacket.payload } returns null
+
+        val wrapped = UdpGetterPacket(ethPacket, udpPacket)
+        val metadata = decoder.decode(wrapped)
+
+        assertNull(metadata)
     }
 
     private fun buildTcpEthernetPacket(payload: ByteArray): EthernetPacket {
@@ -581,6 +737,77 @@ class PacketDecoderTest {
             return when {
                 clazz == EthernetPacket::class.java -> clazz.cast(ethernetPacket)
                 clazz == IpV4Packet::class.java -> null
+                clazz == UdpPacket::class.java -> clazz.cast(udpPacket)
+                else -> ethernetPacket.get(clazz)
+            }
+        }
+    }
+
+    private class IpGetterPacket(
+        private val ethernetPacket: EthernetPacket,
+        private val ipPacket: IpV4Packet,
+        private val udpPacket: UdpPacket
+    ) : Packet {
+        override fun getHeader(): Packet.Header = ethernetPacket.header
+
+        override fun getPayload(): Packet? = ethernetPacket.payload
+
+        override fun length(): Int = ethernetPacket.length()
+
+        override fun getRawData(): ByteArray = ethernetPacket.rawData
+
+        override fun getBuilder(): Packet.Builder = ethernetPacket.builder
+
+        override fun <T : Packet> get(clazz: Class<T>): T? {
+            return when {
+                clazz == EthernetPacket::class.java -> clazz.cast(ethernetPacket)
+                clazz == IpV4Packet::class.java -> clazz.cast(ipPacket)
+                clazz == UdpPacket::class.java -> clazz.cast(udpPacket)
+                else -> ethernetPacket.get(clazz)
+            }
+        }
+    }
+
+    private class TcpGetterPacket(
+        private val ethernetPacket: EthernetPacket,
+        private val tcpPacket: TcpPacket
+    ) : Packet {
+        override fun getHeader(): Packet.Header = ethernetPacket.header
+
+        override fun getPayload(): Packet? = ethernetPacket.payload
+
+        override fun length(): Int = ethernetPacket.length()
+
+        override fun getRawData(): ByteArray = ethernetPacket.rawData
+
+        override fun getBuilder(): Packet.Builder = ethernetPacket.builder
+
+        override fun <T : Packet> get(clazz: Class<T>): T? {
+            return when {
+                clazz == EthernetPacket::class.java -> clazz.cast(ethernetPacket)
+                clazz == TcpPacket::class.java -> clazz.cast(tcpPacket)
+                else -> ethernetPacket.get(clazz)
+            }
+        }
+    }
+
+    private class UdpGetterPacket(
+        private val ethernetPacket: EthernetPacket,
+        private val udpPacket: UdpPacket
+    ) : Packet {
+        override fun getHeader(): Packet.Header = ethernetPacket.header
+
+        override fun getPayload(): Packet? = ethernetPacket.payload
+
+        override fun length(): Int = ethernetPacket.length()
+
+        override fun getRawData(): ByteArray = ethernetPacket.rawData
+
+        override fun getBuilder(): Packet.Builder = ethernetPacket.builder
+
+        override fun <T : Packet> get(clazz: Class<T>): T? {
+            return when {
+                clazz == EthernetPacket::class.java -> clazz.cast(ethernetPacket)
                 clazz == UdpPacket::class.java -> clazz.cast(udpPacket)
                 else -> ethernetPacket.get(clazz)
             }
