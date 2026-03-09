@@ -2,6 +2,7 @@ package com.netaudit.alert
 
 import com.netaudit.event.AuditEventBus
 import com.netaudit.model.AlertLevel
+import com.netaudit.model.AlertRule
 import com.netaudit.model.AuditEvent
 import com.netaudit.storage.AlertRepository
 import io.mockk.Runs
@@ -96,6 +97,51 @@ class AlertEngineTest {
         assertNotNull(alert)
         assertEquals(AlertLevel.WARN, alert.level)
         assertEquals("DNS Tunnel Suspicion", alert.ruleName)
+    }
+
+    @Test
+    fun `alert save failure is handled`() = runTest {
+        val eventBus = AuditEventBus()
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { alertRepo.save(any()) } throws IllegalStateException("db fail")
+
+        val engine = AlertEngine(eventBus, alertRepo, backgroundScope)
+        engine.start()
+        runCurrent()
+
+        val alertDeferred = async { eventBus.alertEvents.first() }
+        eventBus.emitAudit(telnetEvent(username = "admin"))
+        runCurrent()
+
+        val alert = withTimeout(1000) { alertDeferred.await() }
+        assertNotNull(alert)
+    }
+
+    @Test
+    fun `alert rule exceptions are ignored`() = runTest {
+        val eventBus = AuditEventBus()
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { alertRepo.save(any()) } just Runs
+
+        val rules = listOf(
+            AlertRule(
+                id = "rule-err",
+                name = "Throwing Rule",
+                description = "boom",
+                level = AlertLevel.WARN,
+                condition = { throw IllegalStateException("boom") }
+            )
+        )
+
+        val engine = AlertEngine(eventBus, alertRepo, backgroundScope, rules)
+        engine.start()
+        runCurrent()
+
+        eventBus.emitAudit(httpEvent(url = "http://example.com/index.html"))
+        val alertDeferred = async { withTimeoutOrNull(200) { eventBus.alertEvents.first() } }
+        advanceTimeBy(250)
+        val alert = alertDeferred.await()
+        assertNull(alert)
     }
 
     private fun telnetEvent(username: String?): AuditEvent.TelnetEvent = AuditEvent.TelnetEvent(
