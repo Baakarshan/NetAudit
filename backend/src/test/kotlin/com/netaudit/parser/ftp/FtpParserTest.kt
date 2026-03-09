@@ -137,6 +137,90 @@ class FtpParserTest {
     }
 
     @Test
+    fun `test blank payload`() {
+        val event = parser.parse(buildContext("  \r\n"))
+        assertNull(event)
+    }
+
+    @Test
+    fun `test unknown command`() {
+        val event = parser.parse(buildContext("FOO bar\r\n"))
+        assertNull(event)
+    }
+
+    @Test
+    fun `test DELE command updates pending state`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext("DELE old.txt\r\n", sessionState = sessionState))
+            as com.netaudit.model.AuditEvent.FtpEvent
+        assertEquals("DELE", event.command)
+
+        val session = sessionState["ftp.session"] as FtpSessionState
+        assertEquals("DELE", session.pendingCommand)
+        assertEquals("old.txt", session.pendingArgument)
+    }
+
+    @Test
+    fun `test response short line`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(
+            buildContext(
+                payload = "5",
+                direction = Direction.SERVER_TO_CLIENT,
+                sessionState = sessionState
+            )
+        )
+        assertNull(event)
+    }
+
+    @Test
+    fun `test response invalid code`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(
+            buildContext(
+                payload = "ABC Not a code\r\n",
+                direction = Direction.SERVER_TO_CLIENT,
+                sessionState = sessionState
+            )
+        )
+        assertNull(event)
+    }
+
+    @Test
+    fun `test transfer complete response updates phase`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "ftp.session" to FtpSessionState(phase = FtpPhase.TRANSFER)
+        )
+        val event = parser.parse(
+            buildContext(
+                payload = "226 Transfer complete\r\n",
+                direction = Direction.SERVER_TO_CLIENT,
+                sessionState = sessionState
+            )
+        )
+        assertNull(event)
+        val session = sessionState["ftp.session"] as FtpSessionState
+        assertEquals(FtpPhase.LOGGED_IN, session.phase)
+    }
+
+    @Test
+    fun `test PWD response without quotes keeps directory`() {
+        val sessionState = mutableMapOf<String, Any>(
+            "ftp.session" to FtpSessionState(currentDirectory = "/prev")
+        )
+        val event = parser.parse(
+            buildContext(
+                payload = "257 /no/quotes\r\n",
+                direction = Direction.SERVER_TO_CLIENT,
+                sessionState = sessionState
+            )
+        )
+        assertNull(event)
+        val session = sessionState["ftp.session"] as FtpSessionState
+        assertEquals("/prev", session.currentDirectory)
+    }
+
+    @Test
     fun `test non ftp text`() {
         val event = parser.parse(buildContext("HELLO"))
         assertNull(event)
