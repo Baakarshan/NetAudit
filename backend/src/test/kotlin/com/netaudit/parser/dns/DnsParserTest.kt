@@ -79,6 +79,79 @@ class DnsParserTest {
         assertEquals("8.8.8.8", respEvent.dstIp)
     }
 
+    @Test
+    fun `test AAAA response`() {
+        val payload = buildDnsResponse("example.com", listOf("2001:db8::1"))
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.resolvedIps.first().contains(":"))
+    }
+
+    @Test
+    fun `test unknown query type`() {
+        val payload = buildDnsQuery("example.com", 99)
+        val context = buildContext(payload)
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertEquals("TYPE99", event.queryType)
+    }
+
+    @Test
+    fun `test response with non address record`() {
+        val payload = buildDnsResponseWithRecord("example.com", 15, byteArrayOf(0x00, 0x0A))
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
+    fun `test qdcount zero returns null`() {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x0100)
+            .putShort(0)
+            .putShort(0)
+            .putShort(0)
+            .putShort(0)
+            .array()
+        val context = buildContext(header)
+        assertNull(parser.parse(context))
+    }
+
+    @Test
+    fun `test parse exception returns null`() {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x0100)
+            .putShort(1)
+            .putShort(0)
+            .putShort(0)
+            .putShort(0)
+            .array()
+        val context = buildContext(header)
+        assertNull(parser.parse(context))
+    }
+
+    @Test
+    fun `test readDomainName pointer and bounds`() {
+        val method = DnsParser::class.java.getDeclaredMethod("readDomainName", ByteArray::class.java, Int::class.javaPrimitiveType)
+        method.isAccessible = true
+
+        val data = ByteArray(40)
+        data[12] = 0xC0.toByte()
+        data[13] = 0x14.toByte()
+        val label = "example".toByteArray(Charsets.US_ASCII)
+        data[20] = label.size.toByte()
+        label.copyInto(data, 21)
+        data[21 + label.size] = 0
+
+        val name = method.invoke(parser, data, 12) as String
+        assertEquals("example", name)
+
+        val bad = byteArrayOf(10, 1, 2)
+        val badName = method.invoke(parser, bad, 0) as String
+        assertEquals("", badName)
+    }
+
     private fun buildContext(
         payload: ByteArray,
         srcIp: String = "192.168.1.100",
@@ -170,6 +243,34 @@ class DnsParserTest {
         }
 
         return header + qname + question + answerBytes.toByteArray()
+    }
+
+    private fun buildDnsResponseWithRecord(domain: String, type: Int, rdata: ByteArray): ByteArray {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x8180.toShort())
+            .putShort(1)
+            .putShort(1)
+            .putShort(0)
+            .putShort(0)
+            .array()
+
+        val qname = encodeDomain(domain)
+        val question = ByteBuffer.allocate(4)
+            .putShort(type.toShort())
+            .putShort(1)
+            .array()
+
+        val answer = ByteBuffer.allocate(12 + rdata.size)
+            .putShort(0xC00C.toShort())
+            .putShort(type.toShort())
+            .putShort(1)
+            .putInt(60)
+            .putShort(rdata.size.toShort())
+            .put(rdata)
+            .array()
+
+        return header + qname + question + answer
     }
 
     private fun encodeDomain(domain: String): ByteArray {
