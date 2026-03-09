@@ -88,7 +88,7 @@ fun Application.module() {
         auditRoutes(auditRepo)
         alertRoutes(alertRepo)
         statsRoutes(auditRepo, alertRepo)
-        sseRoutes(eventBus)
+        sseRoutes(eventBus.auditEvents, eventBus.alertEvents)
         captureWebSocket(eventBus)
     }
 

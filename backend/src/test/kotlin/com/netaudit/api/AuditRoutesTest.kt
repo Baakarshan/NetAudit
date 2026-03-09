@@ -21,6 +21,8 @@ import io.mockk.mockk
 import kotlinx.datetime.Clock
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -136,6 +138,29 @@ class AuditRoutesTest {
     }
 
     @Test
+    fun `GET stats protocols`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { auditRepo.countByProtocol() } returns mapOf(ProtocolType.HTTP to 2L, ProtocolType.DNS to 1L)
+        coEvery { alertRepo.countByLevel() } returns emptyMap()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { statsRoutes(auditRepo, alertRepo) }
+        }
+
+        val response = client.get("/api/stats/protocols")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val counts = AppJson.decodeFromString(
+            MapSerializer(String.serializer(), Long.serializer()),
+            response.bodyAsText()
+        )
+        assertEquals(2L, counts["HTTP"])
+        assertEquals(1L, counts["DNS"])
+    }
+
+    @Test
     fun `GET alerts recent`() = testApplication {
         environment { config = MapApplicationConfig() }
         val alertRepo = mockk<AlertRepository>()
@@ -149,6 +174,26 @@ class AuditRoutesTest {
         val response = client.get("/api/alerts/recent?limit=3")
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { alertRepo.findRecent(3) }
+    }
+
+    @Test
+    fun `GET alerts stats`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { alertRepo.countByLevel() } returns mapOf(AlertLevel.INFO to 4L)
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { alertRoutes(alertRepo) }
+        }
+
+        val response = client.get("/api/alerts/stats")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val counts = AppJson.decodeFromString(
+            MapSerializer(String.serializer(), Long.serializer()),
+            response.bodyAsText()
+        )
+        assertEquals(4L, counts["INFO"])
     }
 
     private fun sampleHttpEvent(): AuditEvent.HttpEvent = AuditEvent.HttpEvent(
