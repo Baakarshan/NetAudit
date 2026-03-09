@@ -10,6 +10,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
@@ -63,6 +64,8 @@ class SseRoutesTest {
                 assertNotNull(line2)
                 assertTrue(line2.startsWith("data: "))
                 assertEquals("", line3)
+
+                response.call.cancel()
             }
         } finally {
             client.close()
