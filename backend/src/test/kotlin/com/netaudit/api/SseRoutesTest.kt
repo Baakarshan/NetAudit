@@ -27,7 +27,7 @@ class SseRoutesTest {
         val eventBus = AuditEventBus()
         val server = embeddedServer(Netty, port = port) {
             routing { sseRoutes(eventBus) }
-        }.start()
+        }.start(wait = false)
 
         val client = HttpClient(CIO)
         try {
