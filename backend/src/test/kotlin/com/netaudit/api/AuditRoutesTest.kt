@@ -82,6 +82,87 @@ class AuditRoutesTest {
     }
 
     @Test
+    fun `GET audit logs source ip filter`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        val sample = sampleHttpEvent()
+        coEvery { auditRepo.findBySourceIp("10.0.0.1", 0, 50) } returns listOf(sample)
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/logs?srcIp=10.0.0.1")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findBySourceIp("10.0.0.1", 0, 50) }
+    }
+
+    @Test
+    fun `GET audit logs time range filter`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        val start = "2024-01-01T00:00:00Z"
+        val end = "2024-01-01T00:10:00Z"
+        coEvery {
+            auditRepo.findBetween(
+                kotlinx.datetime.Instant.parse(start),
+                kotlinx.datetime.Instant.parse(end),
+                0,
+                50
+            )
+        } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/logs?start=$start&end=$end")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify {
+            auditRepo.findBetween(
+                kotlinx.datetime.Instant.parse(start),
+                kotlinx.datetime.Instant.parse(end),
+                0,
+                50
+            )
+        }
+    }
+
+    @Test
+    fun `GET audit logs page and size bounded`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findAll(1, 200) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/logs?page=1&size=500")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findAll(1, 200) }
+    }
+
+    @Test
+    fun `GET audit logs ignores partial time range`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findAll(0, 50) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/logs?start=2024-01-01T00:00:00Z")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findAll(0, 50) }
+    }
+
+    @Test
     fun `GET audit recent`() = testApplication {
         environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
@@ -96,6 +177,22 @@ class AuditRoutesTest {
         val response = client.get("/api/audit/recent?limit=2")
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { auditRepo.findRecent(2) }
+    }
+
+    @Test
+    fun `GET audit recent limit bounded`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findRecent(100) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/recent?limit=1000")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findRecent(100) }
     }
 
     @Test
