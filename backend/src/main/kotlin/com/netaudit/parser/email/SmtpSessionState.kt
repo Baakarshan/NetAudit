@@ -12,5 +12,9 @@ data class SmtpSessionState(
 )
 
 enum class SmtpPhase {
-    CONNECTED, GREETED, FROM_SET, RCPT_SET, DATA_MODE, COMPLETED
+    CONNECTED, GREETED, FROM_SET, RCPT_SET, DATA_MODE, COMPLETED;
+
+    fun isTerminal(): Boolean = this == COMPLETED
 }
+
+internal val smtpPhaseMarker: Int = SmtpPhase.values().size

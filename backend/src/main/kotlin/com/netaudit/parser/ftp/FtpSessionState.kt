@@ -12,5 +12,9 @@ enum class FtpPhase {
     IDLE,
     AUTH,
     LOGGED_IN,
-    TRANSFER
+    TRANSFER;
+
+    fun isAuthenticated(): Boolean = this == LOGGED_IN
 }
+
+internal val ftpPhaseMarker: Int = FtpPhase.values().size

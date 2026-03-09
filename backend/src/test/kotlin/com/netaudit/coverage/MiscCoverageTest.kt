@@ -3,8 +3,10 @@ package com.netaudit.coverage
 import com.netaudit.parser.email.EmailHeaderParser
 import com.netaudit.parser.email.SmtpPhase
 import com.netaudit.parser.email.SmtpSessionState
+import com.netaudit.parser.email.smtpPhaseMarker
 import com.netaudit.parser.ftp.FtpPhase
 import com.netaudit.parser.ftp.FtpSessionState
+import com.netaudit.parser.ftp.ftpPhaseMarker
 import com.netaudit.stream.PacketBuffer
 import com.netaudit.stream.TcpStreamBuffer
 import com.netaudit.model.StreamKey
@@ -24,14 +26,20 @@ class MiscCoverageTest {
         val smtpState = SmtpSessionState(phase = SmtpPhase.GREETED)
         assertEquals(SmtpPhase.GREETED, smtpState.phase)
         assertTrue(SmtpPhase.values().isNotEmpty())
+        assertTrue(SmtpPhase.entries.isNotEmpty())
         assertEquals(SmtpPhase.CONNECTED, SmtpSessionState().phase)
         assertEquals(SmtpPhase.CONNECTED, SmtpPhase.valueOf("CONNECTED"))
+        assertTrue(SmtpPhase.COMPLETED.isTerminal())
+        assertTrue(smtpPhaseMarker > 0)
 
         val ftpState = FtpSessionState(phase = FtpPhase.LOGGED_IN)
         assertEquals(FtpPhase.LOGGED_IN, ftpState.phase)
         assertTrue(FtpPhase.values().isNotEmpty())
+        assertTrue(FtpPhase.entries.isNotEmpty())
         assertEquals(FtpPhase.IDLE, FtpSessionState().phase)
         assertEquals(FtpPhase.IDLE, FtpPhase.valueOf("IDLE"))
+        assertTrue(FtpPhase.LOGGED_IN.isAuthenticated())
+        assertTrue(ftpPhaseMarker > 0)
     }
 
     @Test
@@ -56,5 +64,6 @@ class MiscCoverageTest {
         val defaultTcpBuffer = TcpStreamBuffer(key)
         defaultTcpBuffer.appendClientData("ping".toByteArray())
         assertEquals("ping", defaultTcpBuffer.consumeClientData())
+        defaultTcpBuffer.isExpired()
     }
 }
