@@ -3,6 +3,7 @@ package com.netaudit.api
 import com.netaudit.event.AuditEventBus
 import com.netaudit.model.AuditEvent
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.readUTF8Line
