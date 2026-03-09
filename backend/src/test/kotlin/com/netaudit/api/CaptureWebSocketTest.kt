@@ -11,6 +11,7 @@ import io.ktor.server.testing.testApplication
 import io.ktor.server.websocket.WebSockets as ServerWebSockets
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
 import kotlin.test.Test
@@ -42,6 +43,33 @@ class CaptureWebSocketTest {
             eventBus.emitAudit(sampleHttpEvent())
             val eventFrame = withTimeout(2000) { incoming.receive() as Frame.Text }
             assertTrue(eventFrame.readText().contains("\"protocol\""))
+        }
+    }
+
+    @Test
+    fun `websocket handles flow error and encode failure`() = testApplication {
+        environment { config = MapApplicationConfig("ktor.application.modules.size" to "0") }
+
+        application {
+            install(ServerWebSockets)
+            routing {
+                val errorFlow = flow {
+                    emit(sampleHttpEvent())
+                    throw IllegalStateException("boom")
+                }
+                captureWebSocket(errorFlow) { _ -> throw IllegalArgumentException("encode failed") }
+            }
+        }
+
+        val wsClient = createClient {
+            install(WebSockets)
+        }
+
+        wsClient.webSocket("/ws/capture") {
+            send(Frame.Text("ping"))
+            val pong = withTimeout(2000) { incoming.receive() as Frame.Text }
+            assertEquals("pong", pong.readText())
+            send(Frame.Binary(true, byteArrayOf(1, 2, 3)))
         }
     }
 

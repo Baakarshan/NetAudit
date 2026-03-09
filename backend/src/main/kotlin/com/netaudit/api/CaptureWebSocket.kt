@@ -9,6 +9,7 @@ import kotlinx.serialization.encodeToString
 import com.netaudit.model.AuditEvent
 import com.netaudit.model.AppJson
 import com.netaudit.event.AuditEventBus
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
@@ -18,19 +19,26 @@ private val logger = KotlinLogging.logger {}
  * 配置 WebSocket 路由
  */
 fun Route.captureWebSocket(eventBus: AuditEventBus) {
+    captureWebSocket(eventBus.auditEvents)
+}
+
+internal fun Route.captureWebSocket(
+    auditEvents: Flow<AuditEvent>,
+    encode: (AuditEvent) -> String = { AppJson.encodeToString(it) }
+) {
     webSocket("/ws/capture") {
         logger.info { "WebSocket client connected: ${call.request.local.remoteHost}" }
 
         try {
             // 订阅事件总线
             val job = launch {
-                eventBus.auditEvents
+                auditEvents
                     .catch { e: Throwable ->
                         logger.error(e) { "Error in event stream" }
                     }
                     .collect { event: AuditEvent ->
                         try {
-                            val json = AppJson.encodeToString(event)
+                            val json = encode(event)
                             send(Frame.Text(json))
                         } catch (e: Exception) {
                             logger.error(e) { "Failed to send event to WebSocket client" }
