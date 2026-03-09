@@ -1,0 +1,8 @@
+{
+  "minEvents": 2,
+  "requiredFields": ["commandLine"],
+  "checks": [
+    { "command_contains": "whoami" },
+    { "command_contains": "ls" }
+  ]
+}

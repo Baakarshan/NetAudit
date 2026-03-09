@@ -1,0 +1,8 @@
+{
+  "minEvents": 2,
+  "requiredFields": ["queryDomain", "queryType"],
+  "checks": [
+    { "query_contains": "example.com" },
+    { "query_contains": "test.local" }
+  ]
+}

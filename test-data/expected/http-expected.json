@@ -1,0 +1,8 @@
+{
+  "minEvents": 3,
+  "requiredFields": ["method", "url", "host"],
+  "checks": [
+    { "url_contains": "/index.html", "method": "GET" },
+    { "url_contains": "/admin/secret.html", "method": "GET" }
+  ]
+}

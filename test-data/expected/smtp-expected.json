@@ -1,0 +1,7 @@
+{
+  "minEvents": 1,
+  "requiredFields": ["subject", "attachmentNames", "attachmentSizes"],
+  "checks": [
+    { "subject_contains": "Report" }
+  ]
+}

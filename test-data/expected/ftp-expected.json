@@ -1,0 +1,8 @@
+{
+  "minEvents": 2,
+  "requiredFields": ["command", "username"],
+  "checks": [
+    { "command": "RETR", "argument_contains": "README.txt" },
+    { "command": "RETR", "argument_contains": "secret.doc" }
+  ]
+}

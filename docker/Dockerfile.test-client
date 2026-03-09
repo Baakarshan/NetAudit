@@ -1,0 +1,13 @@
+FROM alpine:3.19
+RUN apk add --no-cache \
+    curl \
+    busybox-extras \
+    bind-tools \
+    netcat-openbsd \
+    bash \
+    ftp \
+    tcpdump
+COPY scripts/ /scripts/
+COPY test-data/ /test-data/
+RUN chmod +x /scripts/*.sh
+CMD ["sleep", "infinity"]

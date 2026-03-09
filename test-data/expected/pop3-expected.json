@@ -1,0 +1,7 @@
+{
+  "minEvents": 1,
+  "requiredFields": ["command", "subject", "attachmentNames"],
+  "checks": [
+    { "command": "RETR" }
+  ]
+}
