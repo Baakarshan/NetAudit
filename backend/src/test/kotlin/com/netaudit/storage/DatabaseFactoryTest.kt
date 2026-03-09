@@ -39,4 +39,10 @@ class DatabaseFactoryTest {
         assertTrue(statements[0].startsWith("ALTER TABLE audit_logs"))
         assertTrue(statements[1].startsWith("CREATE INDEX IF NOT EXISTS idx_audit_details"))
     }
+
+    @Test
+    fun `close without init is safe`() {
+        DatabaseFactory.close()
+        assertTrue(true)
+    }
 }
