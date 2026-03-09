@@ -42,7 +42,7 @@ class ModelAndConfigCoverageTest {
         assertEquals(AlertLevel.INFO, AlertLevel.valueOf("INFO"))
         assertTrue(TransportProtocol.entries.isNotEmpty())
         assertEquals(TransportProtocol.TCP, TransportProtocol.valueOf("TCP"))
-        assertTrue(TransportProtocol.Companion.toString().isNotBlank())
+        Class.forName("com.netaudit.model.TransportProtocol\$Companion")
         assertTrue(Direction.entries.isNotEmpty())
         assertEquals(Direction.CLIENT_TO_SERVER, Direction.valueOf("CLIENT_TO_SERVER"))
 
