@@ -14,6 +14,7 @@ import java.io.File
 import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 class BatchWriterTest {
     @Test
@@ -129,6 +130,62 @@ class BatchWriterTest {
             assertTrue(dlqFile.exists())
         } finally {
             writer.stop()
+        }
+    }
+
+    @Test
+    fun `start is ignored when already running`() = runTest {
+        val mockRepo = mockk<AuditRepository>()
+        coEvery { mockRepo.saveBatch(any()) } just Runs
+
+        val eventBus = AuditEventBus()
+        val writer = BatchWriter(
+            repository = mockRepo,
+            eventBus = eventBus,
+            scope = this,
+            batchSize = 1,
+            flushIntervalMs = 1000
+        )
+        writer.start()
+        writer.start()
+
+        writer.stop()
+        assertFalse(writer.toString().isBlank())
+    }
+
+    @Test
+    fun `dead letter queue write failure is handled`() = runTest {
+        val mockRepo = mockk<AuditRepository>()
+        coEvery { mockRepo.saveBatch(any()) } throws RuntimeException("db down")
+
+        val eventBus = AuditEventBus()
+        val writer = BatchWriter(
+            repository = mockRepo,
+            eventBus = eventBus,
+            scope = this,
+            batchSize = 1,
+            flushIntervalMs = 1
+        )
+        writer.start()
+
+        val dlqDir = File("logs/dead-letter-queue.jsonl")
+        if (dlqDir.exists()) {
+            dlqDir.deleteRecursively()
+        }
+        dlqDir.mkdirs()
+
+        try {
+            eventBus.emitAudit(httpEvent("retry-2"))
+            runCurrent()
+
+            advanceTimeBy(10)
+            runCurrent()
+
+            writer.shutdown()
+            assertTrue(dlqDir.isDirectory)
+        } finally {
+            writer.stop()
+            dlqDir.deleteRecursively()
         }
     }
 

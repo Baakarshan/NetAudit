@@ -210,6 +210,38 @@ class PacketDecoderTest {
     }
 
     @Test
+    fun `decode falls back to current time when timestamp unsupported`() {
+        val ethPacket = buildTcpEthernetPacket("ping".toByteArray())
+        val wrapped = NoTimestampPacket(ethPacket)
+
+        val metadata = decoder.decode(wrapped)
+
+        assertNotNull(metadata)
+    }
+
+    @Test
+    fun `resolveTimestamp handles missing method`() {
+        val method = PacketDecoder::class.java.getDeclaredMethod("resolveTimestamp", Packet::class.java)
+        method.isAccessible = true
+        val packet = NoTimestampPacket(buildTcpEthernetPacket("ping".toByteArray()))
+
+        val result = method.invoke(decoder, packet) as kotlinx.datetime.Instant
+
+        assertNotNull(result)
+    }
+
+    @Test
+    fun `resolveTimestamp handles invocation failure`() {
+        val method = PacketDecoder::class.java.getDeclaredMethod("resolveTimestamp", Packet::class.java)
+        method.isAccessible = true
+        val packet = ThrowingTimestampPacket(buildTcpEthernetPacket("ping".toByteArray()))
+
+        val result = method.invoke(decoder, packet) as kotlinx.datetime.Instant
+
+        assertNotNull(result)
+    }
+
+    @Test
     fun `parseIpFromPayload parses ipv4 from payload raw data`() {
         val ipPacket = buildUdpIpPacket(byteArrayOf(1, 2, 3, 4))
         val ethPacket = EthernetPacket.Builder()
@@ -228,6 +260,52 @@ class PacketDecoderTest {
         val result = method.invoke(decoder, ethPacket) as IpV4Packet?
 
         assertNotNull(result)
+    }
+
+    @Test
+    fun `parseIpFromPayload returns null on invalid ipv4 raw`() {
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(UnknownPacket.Builder().rawData(byteArrayOf(1)))
+            .paddingAtBuild(true)
+            .build()
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromPayload",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `decode uses parseIpFromPayload when packet lacks ipv4 chain`() {
+        val ipPacket = buildUdpIpPacket(byteArrayOf(1, 2, 3, 4))
+        val udpPacket = ipPacket.payload as UdpPacket
+        val ethPacket = EthernetPacket.Builder()
+            .srcAddr(MacAddress.getByName("00:11:22:33:44:55"))
+            .dstAddr(MacAddress.getByName("AA:BB:CC:DD:EE:FF"))
+            .type(EtherType.IPV4)
+            .payloadBuilder(UnknownPacket.Builder().rawData(ipPacket.rawData))
+            .paddingAtBuild(true)
+            .build()
+
+        val wrapped = PayloadIpWrapperPacket(ethPacket, udpPacket)
+        val metadata = decoder.decode(wrapped)
+
+        assertNotNull(metadata)
+        assertEquals(TransportProtocol.UDP, metadata.ipProtocol)
+    }
+
+    @Test
+    fun `decode returns null for non ethernet packet`() {
+        val packet = UnknownPacket.Builder().rawData(byteArrayOf(1, 2, 3)).build()
+        val metadata = decoder.decode(packet)
+        assertNull(metadata)
     }
 
     @Test
@@ -280,6 +358,40 @@ class PacketDecoderTest {
         val raw = ByteArray(14)
         raw[12] = 0x08
         raw[13] = 0x00
+        val ethPacket = EthernetPacket.newPacket(raw, 0, raw.size)
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromRaw",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `parseIpFromRaw returns null on invalid ipv4 raw`() {
+        val raw = ByteArray(15)
+        raw[12] = 0x08
+        raw[13] = 0x00
+        val ethPacket = EthernetPacket.newPacket(raw, 0, raw.size)
+
+        val method = PacketDecoder::class.java.getDeclaredMethod(
+            "parseIpFromRaw",
+            EthernetPacket::class.java
+        )
+        method.isAccessible = true
+        val result = method.invoke(decoder, ethPacket) as IpV4Packet?
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `parseIpFromRaw returns null for non ipv4 type`() {
+        val raw = ByteArray(60)
+        raw[12] = 0x08
+        raw[13] = 0x06
         val ethPacket = EthernetPacket.newPacket(raw, 0, raw.size)
 
         val method = PacketDecoder::class.java.getDeclaredMethod(
@@ -401,6 +513,77 @@ class PacketDecoderTest {
                 return clazz.cast(inner)
             }
             return inner.get(clazz)
+        }
+    }
+
+    private class ThrowingTimestampPacket(
+        private val inner: Packet
+    ) : Packet {
+        @Suppress("unused")
+        fun getTimestamp(): Any {
+            throw IllegalStateException("boom")
+        }
+
+        override fun getHeader(): Packet.Header = inner.header
+
+        override fun getPayload(): Packet? = inner.payload
+
+        override fun length(): Int = inner.length()
+
+        override fun getRawData(): ByteArray = inner.rawData
+
+        override fun getBuilder(): Packet.Builder = inner.builder
+
+        override fun <T : Packet> get(clazz: Class<T>): T? {
+            if (clazz.isInstance(inner)) {
+                return clazz.cast(inner)
+            }
+            return inner.get(clazz)
+        }
+    }
+
+    private class NoTimestampPacket(
+        private val inner: Packet
+    ) : Packet {
+        override fun getHeader(): Packet.Header = inner.header
+
+        override fun getPayload(): Packet? = inner.payload
+
+        override fun length(): Int = inner.length()
+
+        override fun getRawData(): ByteArray = inner.rawData
+
+        override fun getBuilder(): Packet.Builder = inner.builder
+
+        override fun <T : Packet> get(clazz: Class<T>): T? {
+            if (clazz.isInstance(inner)) {
+                return clazz.cast(inner)
+            }
+            return inner.get(clazz)
+        }
+    }
+
+    private class PayloadIpWrapperPacket(
+        private val ethernetPacket: EthernetPacket,
+        private val udpPacket: UdpPacket
+    ) : Packet {
+        override fun getHeader(): Packet.Header = ethernetPacket.header
+
+        override fun getPayload(): Packet? = ethernetPacket.payload
+
+        override fun length(): Int = ethernetPacket.length()
+
+        override fun getRawData(): ByteArray = ethernetPacket.rawData
+
+        override fun getBuilder(): Packet.Builder = ethernetPacket.builder
+
+        override fun <T : Packet> get(clazz: Class<T>): T? {
+            return when {
+                clazz == EthernetPacket::class.java -> clazz.cast(ethernetPacket)
+                clazz == IpV4Packet::class.java -> null
+                clazz == UdpPacket::class.java -> clazz.cast(udpPacket)
+                else -> ethernetPacket.get(clazz)
+            }
         }
     }
 }
