@@ -22,6 +22,10 @@ fun Route.sseRoutes(eventBus: AuditEventBus) {
         call.respondTextWriter(contentType = ContentType.Text.EventStream) {
             logger.info { "SSE client connected: ${call.request.local.remoteAddress}" }
 
+            // 发送 SSE 注释行，确保连接建立并立即刷新
+            write(": connected\n\n")
+            flush()
+
             try {
                 kotlinx.coroutines.supervisorScope {
                     launch {

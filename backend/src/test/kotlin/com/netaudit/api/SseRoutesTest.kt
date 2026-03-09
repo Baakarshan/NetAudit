@@ -10,8 +10,6 @@ import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
 import kotlin.test.Test
@@ -45,13 +43,16 @@ class SseRoutesTest {
         )
 
         coroutineScope {
-            launch {
-                delay(50)
-                eventBus.emitAudit(event)
-            }
-
             client.prepareGet("/api/sse/events").execute { response ->
                 val channel = response.bodyAsChannel()
+                val comment = withTimeout(1000) { channel.readUTF8Line() }
+                val commentSeparator = withTimeout(1000) { channel.readUTF8Line() }
+
+                assertEquals(": connected", comment)
+                assertEquals("", commentSeparator)
+
+                eventBus.emitAudit(event)
+
                 val line1 = withTimeout(1000) { channel.readUTF8Line() }
                 val line2 = withTimeout(1000) { channel.readUTF8Line() }
                 val line3 = withTimeout(1000) { channel.readUTF8Line() }
