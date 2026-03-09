@@ -66,6 +66,22 @@ class AuditRoutesTest {
     }
 
     @Test
+    fun `GET audit logs invalid protocol falls back`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findAll(0, 50) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/logs?protocol=INVALID")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findAll(0, 50) }
+    }
+
+    @Test
     fun `GET audit recent`() = testApplication {
         environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
@@ -113,6 +129,20 @@ class AuditRoutesTest {
 
         val response = client.get("/api/audit/missing")
         assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `GET audit by id blank returns bad request`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/%20")
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
     @Test
