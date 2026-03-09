@@ -44,12 +44,14 @@ class SseRoutesTest {
             statusCode = 200
         )
 
-        client.prepareGet("/api/sse/events").execute { response ->
-            val channel = response.bodyAsChannel()
-            coroutineScope {
+        coroutineScope {
+            launch {
                 delay(50)
-                launch { eventBus.emitAudit(event) }
+                eventBus.emitAudit(event)
+            }
 
+            client.prepareGet("/api/sse/events").execute { response ->
+                val channel = response.bodyAsChannel()
                 val line1 = withTimeout(1000) { channel.readUTF8Line() }
                 val line2 = withTimeout(1000) { channel.readUTF8Line() }
                 val line3 = withTimeout(1000) { channel.readUTF8Line() }
@@ -58,8 +60,9 @@ class SseRoutesTest {
                 assertNotNull(line2)
                 assertTrue(line2.startsWith("data: "))
                 assertEquals("", line3)
+
+                channel.cancel(CancellationException("SSE test completed"))
             }
-            channel.cancel(CancellationException("SSE test completed"))
         }
     }
 }
