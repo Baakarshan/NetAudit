@@ -101,6 +101,52 @@ class SmtpParserTest {
         assertNull(event)
     }
 
+    @Test
+    fun `test blank payload`() {
+        val sessionState = mutableMapOf<String, Any>()
+        val event = parser.parse(buildContext(" ", Direction.CLIENT_TO_SERVER, sessionState))
+        assertNull(event)
+    }
+
+    @Test
+    fun `test quit resets state`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("MAIL FROM:alice@test.com\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+        parser.parse(buildContext("RCPT TO:bob@test.com\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+        parser.parse(buildContext("QUIT\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+
+        val session = sessionState["smtp.session"] as SmtpSessionState
+        assertEquals(SmtpPhase.CONNECTED, session.phase)
+        assertNull(session.from)
+        assertTrue(session.to.isEmpty())
+    }
+
+    @Test
+    fun `test data mode with lf terminator and session from`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("MAIL FROM:alice@test.com\r\n", Direction.CLIENT_TO_SERVER, sessionState))
+        parser.parse(buildContext("354 Go ahead\r\n", Direction.SERVER_TO_CLIENT, sessionState))
+
+        val data =
+            "Subject: Hi\n" +
+                "\n" +
+                "Body\n" +
+                ".\n"
+
+        val event = parser.parse(buildContext(data, Direction.CLIENT_TO_SERVER, sessionState))
+            as com.netaudit.model.AuditEvent.SmtpEvent
+        assertEquals("alice@test.com", event.from)
+        assertEquals("Hi", event.subject)
+    }
+
+    @Test
+    fun `test server response non numeric does not enable data mode`() {
+        val sessionState = mutableMapOf<String, Any>()
+        parser.parse(buildContext("ABC text\r\n", Direction.SERVER_TO_CLIENT, sessionState))
+        val session = sessionState["smtp.session"] as SmtpSessionState
+        assertTrue(!session.inDataMode)
+    }
+
     private fun buildContext(
         payload: String,
         direction: Direction,
