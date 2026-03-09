@@ -23,7 +23,7 @@ fun Route.sseRoutes(eventBus: AuditEventBus) {
             logger.info { "SSE client connected: ${call.request.local.remoteAddress}" }
 
             // 发送 SSE 注释行，确保连接建立并立即刷新
-            write(": connected\n\n")
+            write(sseComment("connected"))
             flush()
 
             try {
@@ -32,8 +32,7 @@ fun Route.sseRoutes(eventBus: AuditEventBus) {
                         try {
                             eventBus.auditEvents.collect { event ->
                                 val json = AppJson.encodeToString<AuditEvent>(event)
-                                write("event: audit\n")
-                                write("data: $json\n\n")
+                                write(sseEvent("audit", json))
                                 flush()
                             }
                         } catch (e: Exception) {
@@ -44,8 +43,7 @@ fun Route.sseRoutes(eventBus: AuditEventBus) {
                         try {
                             eventBus.alertEvents.collect { alert ->
                                 val json = AppJson.encodeToString(alert)
-                                write("event: alert\n")
-                                write("data: $json\n\n")
+                                write(sseEvent("alert", json))
                                 flush()
                             }
                         } catch (e: Exception) {

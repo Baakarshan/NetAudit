@@ -58,7 +58,6 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:5.9.1")
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
-    testImplementation("io.ktor:ktor-client-cio:$ktorVersion")
     testImplementation("com.h2database:h2:2.2.224")
 }
 
