@@ -83,7 +83,7 @@ class TcpStreamTrackerTest {
 
         assertEquals(1, tracker.activeStreamCount())
 
-        // 发送 FIN 包
+        // 发送 FIN 包（空 payload）
         val finMetadata = dataMetadata.copy(
             tcpFlags = TcpFlags(syn = false, ack = true, fin = true, rst = false, psh = false),
             payload = ByteArray(0)
@@ -91,6 +91,215 @@ class TcpStreamTrackerTest {
         tracker.handleTcpPacket(finMetadata)
 
         assertEquals(0, tracker.activeStreamCount())
+    }
+
+    @Test
+    fun `test TCP RST cleanup branch`() = runTest {
+        val mockParser = mockk<ProtocolParser>(relaxed = true)
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        coEvery { mockParser.parse(any()) } returns null
+
+        val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
+
+        val dataMetadata = PacketMetadata(
+            timestamp = Clock.System.now(),
+            srcMac = "00:11:22:33:44:55",
+            dstMac = "AA:BB:CC:DD:EE:FF",
+            srcIp = "192.168.1.100",
+            dstIp = "192.168.1.1",
+            srcPort = 12345,
+            dstPort = 80,
+            ipProtocol = TransportProtocol.TCP,
+            tcpFlags = TcpFlags(syn = false, ack = true, fin = false, rst = false, psh = false),
+            seqNumber = 1000L,
+            ackNumber = 2000L,
+            payload = "data".toByteArray()
+        )
+        tracker.handleTcpPacket(dataMetadata)
+        assertEquals(1, tracker.activeStreamCount())
+
+        val rstMetadata = dataMetadata.copy(
+            tcpFlags = TcpFlags(syn = false, ack = true, fin = false, rst = true, psh = false),
+            payload = ByteArray(0)
+        )
+        tracker.handleTcpPacket(rstMetadata)
+
+        assertEquals(0, tracker.activeStreamCount())
+    }
+
+    @Test
+    fun `test TCP FIN with payload triggers parse and emit`() = runTest {
+        val mockParser = mockk<ProtocolParser>()
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        val event = AuditEvent.HttpEvent(
+            id = "event-1",
+            timestamp = Clock.System.now(),
+            srcIp = "1.1.1.1",
+            dstIp = "2.2.2.2",
+            srcPort = 1111,
+            dstPort = 80,
+            method = "GET",
+            url = "/",
+            host = "example.com"
+        )
+        coEvery { mockParser.parse(any()) } returns event
+
+        val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
+        val metadata = PacketMetadata(
+            timestamp = Clock.System.now(),
+            srcMac = "00:11:22:33:44:55",
+            dstMac = "AA:BB:CC:DD:EE:FF",
+            srcIp = "1.1.1.1",
+            dstIp = "2.2.2.2",
+            srcPort = 1111,
+            dstPort = 80,
+            ipProtocol = TransportProtocol.TCP,
+            tcpFlags = TcpFlags(syn = false, ack = true, fin = true, rst = false, psh = false),
+            seqNumber = 1,
+            ackNumber = 1,
+            payload = "hi".toByteArray()
+        )
+
+        tracker.handleTcpPacket(metadata)
+
+        coVerify { mockParser.parse(any()) }
+        coVerify { mockEventBus.emitAudit(event) }
+    }
+
+    @Test
+    fun `test TCP ignores empty payload without flags`() = runTest {
+        val mockParser = mockk<ProtocolParser>(relaxed = true)
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        coEvery { mockParser.parse(any()) } returns null
+
+        val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
+        val metadata = PacketMetadata(
+            timestamp = Clock.System.now(),
+            srcMac = "00:11:22:33:44:55",
+            dstMac = "AA:BB:CC:DD:EE:FF",
+            srcIp = "192.168.1.10",
+            dstIp = "192.168.1.1",
+            srcPort = 1111,
+            dstPort = 80,
+            ipProtocol = TransportProtocol.TCP,
+            tcpFlags = TcpFlags(syn = false, ack = true, fin = false, rst = false, psh = false),
+            seqNumber = 1,
+            ackNumber = 1,
+            payload = ByteArray(0)
+        )
+
+        tracker.handleTcpPacket(metadata)
+
+        coVerify(exactly = 0) { mockParser.parse(any()) }
+    }
+
+    @Test
+    fun `test TCP parser exception is handled`() = runTest {
+        val mockParser = mockk<ProtocolParser>()
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        coEvery { mockParser.parse(any()) } throws IllegalStateException("boom")
+
+        val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
+        val metadata = PacketMetadata(
+            timestamp = Clock.System.now(),
+            srcMac = "00:11:22:33:44:55",
+            dstMac = "AA:BB:CC:DD:EE:FF",
+            srcIp = "192.168.1.100",
+            dstIp = "192.168.1.1",
+            srcPort = 54321,
+            dstPort = 80,
+            ipProtocol = TransportProtocol.TCP,
+            tcpFlags = TcpFlags(syn = false, ack = true, fin = false, rst = false, psh = false),
+            seqNumber = 1000L,
+            ackNumber = 2000L,
+            payload = "data".toByteArray()
+        )
+
+        tracker.handleTcpPacket(metadata)
+
+        coVerify(exactly = 0) { mockEventBus.emitAudit(any()) }
+    }
+
+    @Test
+    fun `test UDP server to client direction`() = runTest {
+        val mockParser = mockk<ProtocolParser>(relaxed = true)
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        every { mockRegistry.findByPort(any()) } returns null
+        coEvery { mockParser.parse(any()) } returns null
+
+        val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
+
+        val metadata = PacketMetadata(
+            timestamp = Clock.System.now(),
+            srcMac = "00:11:22:33:44:55",
+            dstMac = "AA:BB:CC:DD:EE:FF",
+            srcIp = "8.8.8.8",
+            dstIp = "192.168.1.100",
+            srcPort = 53,
+            dstPort = 55555,
+            ipProtocol = TransportProtocol.UDP,
+            tcpFlags = null,
+            seqNumber = null,
+            ackNumber = null,
+            payload = "dns response".toByteArray()
+        )
+        tracker.handleUdpPacket(metadata)
+
+        coVerify(exactly = 1) { mockParser.parse(withArg { context ->
+            assertEquals(Direction.SERVER_TO_CLIENT, context.direction)
+        }) }
+    }
+
+    @Test
+    fun `test UDP parser exception is handled`() = runTest {
+        val mockParser = mockk<ProtocolParser>()
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        every { mockRegistry.findByPort(any()) } returns null
+        coEvery { mockParser.parse(any()) } throws IllegalStateException("boom")
+
+        val tracker = TcpStreamTracker(mockRegistry, mockEventBus, testScope)
+
+        val metadata = PacketMetadata(
+            timestamp = Clock.System.now(),
+            srcMac = "00:11:22:33:44:55",
+            dstMac = "AA:BB:CC:DD:EE:FF",
+            srcIp = "8.8.8.8",
+            dstIp = "192.168.1.100",
+            srcPort = 53,
+            dstPort = 55555,
+            ipProtocol = TransportProtocol.UDP,
+            tcpFlags = null,
+            seqNumber = null,
+            ackNumber = null,
+            payload = "dns response".toByteArray()
+        )
+        tracker.handleUdpPacket(metadata)
+
+        coVerify(exactly = 0) { mockEventBus.emitAudit(any()) }
+    }
+
+    @Test
+    fun `cleanup job with no expired streams keeps state`() = runTest {
+        val mockParser = mockk<ProtocolParser>(relaxed = true)
+        every { mockRegistry.findByEitherPort(any(), any()) } returns mockParser
+        coEvery { mockParser.parse(any()) } returns null
+
+        val tracker = TcpStreamTracker(
+            registry = mockRegistry,
+            eventBus = mockEventBus,
+            scope = this,
+            streamTimeoutSeconds = 60,
+            cleanupIntervalMs = 1,
+            nowProvider = { Clock.System.now() }
+        )
+
+        val cleanupJob = tracker.startCleanupJob()
+        advanceTimeBy(2)
+        runCurrent()
+
+        assertEquals(0, tracker.activeStreamCount())
+        cleanupJob.cancel()
+        cleanupJob.join()
     }
 
     @Test
