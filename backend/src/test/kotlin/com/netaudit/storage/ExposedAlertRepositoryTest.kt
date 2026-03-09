@@ -93,4 +93,13 @@ class ExposedAlertRepositoryTest {
         assertEquals(1L, counts[AlertLevel.INFO])
         assertEquals(1L, counts[AlertLevel.CRITICAL])
     }
+
+    @Test
+    fun `empty repository returns empty results`() = runTest {
+        val recent = repository.findRecent(5)
+        assertEquals(0, recent.size)
+
+        val counts = repository.countByLevel()
+        assertEquals(0, counts.size)
+    }
 }
