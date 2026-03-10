@@ -4,7 +4,6 @@ import com.netaudit.alert.AlertEngine
 import com.netaudit.config.CaptureConfig
 import com.netaudit.config.DatabaseConfig
 import com.netaudit.event.AuditEventBus
-import com.netaudit.model.AppJson
 import com.netaudit.parser.ParserRegistry
 import com.netaudit.parser.dns.DnsParser
 import com.netaudit.parser.email.Pop3Parser
@@ -54,7 +53,7 @@ class FullPipelineIntegrationTest {
 
         DatabaseFactory.init(dbConfig)
 
-        val auditRepo = ExposedAuditRepository(AppJson)
+        val auditRepo = ExposedAuditRepository()
         val alertRepo = ExposedAlertRepository()
         val eventBus = AuditEventBus()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

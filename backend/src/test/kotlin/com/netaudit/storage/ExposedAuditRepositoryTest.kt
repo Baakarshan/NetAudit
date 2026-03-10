@@ -1,7 +1,6 @@
 package com.netaudit.storage
 
 import com.netaudit.model.AuditEvent
-import com.netaudit.model.AppJson
 import com.netaudit.model.ProtocolType
 import com.netaudit.storage.impl.ExposedAuditRepository
 import com.netaudit.storage.tables.AlertsTable
@@ -30,7 +29,7 @@ class ExposedAuditRepositoryTest {
             driver = "org.h2.Driver"
         )
         DatabaseFactory.createTables()
-        repository = ExposedAuditRepository(AppJson)
+        repository = ExposedAuditRepository()
         DatabaseFactory.forceSuspend = true
     }
 

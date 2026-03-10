@@ -8,9 +8,6 @@ import com.netaudit.storage.tables.AuditLogsTable
 import com.netaudit.storage.util.toJavaOffsetDateTime
 import kotlinx.datetime.Instant
 import kotlinx.coroutines.yield
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.statements.UpdateBuilder
@@ -23,7 +20,7 @@ import org.jetbrains.exposed.sql.batchInsert
 /**
  * AuditRepository 的 Exposed 实现。
  */
-class ExposedAuditRepository(private val json: Json) : AuditRepository {
+class ExposedAuditRepository : AuditRepository {
     override suspend fun save(event: AuditEvent) {
         // 测试场景触发一次挂起，确保协程路径覆盖
         if (DatabaseFactory.forceSuspend) {
@@ -126,10 +123,10 @@ class ExposedAuditRepository(private val json: Json) : AuditRepository {
         row[AuditLogsTable.dstPort] = event.dstPort
         row[AuditLogsTable.alertLevel] = event.alertLevel.name
         row[AuditLogsTable.capturedAt] = event.timestamp.toJavaOffsetDateTime()
-        row[AuditLogsTable.details] = json.encodeToString(AuditEvent.serializer(), event)
+        row[AuditLogsTable.details] = event
     }
 
     private fun rowToEvent(row: ResultRow): AuditEvent {
-        return json.decodeFromString(AuditEvent.serializer(), row[AuditLogsTable.details])
+        return row[AuditLogsTable.details]
     }
 }

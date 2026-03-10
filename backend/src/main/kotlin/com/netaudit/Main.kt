@@ -16,7 +16,6 @@ import com.netaudit.parser.telnet.TelnetParser
 import com.netaudit.parser.dns.DnsParser
 import com.netaudit.parser.email.SmtpParser
 import com.netaudit.parser.email.Pop3Parser
-import com.netaudit.model.AppJson
 import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.BatchWriter
 import com.netaudit.storage.impl.ExposedAlertRepository
@@ -54,7 +53,7 @@ fun Application.module(
     registry: ParserRegistry = ParserRegistry(),
     eventBus: AuditEventBus = AuditEventBus(),
     databaseInit: (com.netaudit.config.DatabaseConfig) -> Unit = DatabaseFactory::init,
-    auditRepoProvider: () -> com.netaudit.storage.AuditRepository = { ExposedAuditRepository(AppJson) },
+    auditRepoProvider: () -> com.netaudit.storage.AuditRepository = { ExposedAuditRepository() },
     alertRepoProvider: () -> com.netaudit.storage.AlertRepository = { ExposedAlertRepository() },
     batchWriterStarter: (com.netaudit.storage.AuditRepository, AuditEventBus, Application) -> Unit =
         { repo, bus, app ->
