@@ -171,6 +171,16 @@ class ExposedAuditRepositoryTest {
         assertEquals(0L, repository.countAll())
     }
 
+    @Test
+    fun `forceSuspend disabled path works`() = runTest {
+        DatabaseFactory.forceSuspend = false
+        val event = httpEvent("nosuspend-1")
+        repository.save(event)
+        assertEquals(1L, repository.countAll())
+        assertEquals(event.id, repository.findByEventId(event.id)?.id)
+        DatabaseFactory.forceSuspend = true
+    }
+
     private fun httpEvent(
         id: String,
         srcIp: String = "192.168.1.100",

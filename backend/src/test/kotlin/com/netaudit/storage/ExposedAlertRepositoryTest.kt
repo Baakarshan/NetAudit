@@ -104,4 +104,21 @@ class ExposedAlertRepositoryTest {
         val counts = repository.countByLevel()
         assertEquals(0, counts.size)
     }
+
+    @Test
+    fun `forceSuspend disabled path works`() = runTest {
+        DatabaseFactory.forceSuspend = false
+        val alert = AlertRecord(
+            id = "alert-nosuspend",
+            timestamp = Instant.parse("2024-01-01T00:00:00Z"),
+            level = AlertLevel.INFO,
+            ruleName = "rule",
+            message = "message",
+            auditEventId = "event",
+            protocol = ProtocolType.HTTP
+        )
+        repository.save(alert)
+        assertEquals(1, repository.findRecent(10).size)
+        DatabaseFactory.forceSuspend = true
+    }
 }
