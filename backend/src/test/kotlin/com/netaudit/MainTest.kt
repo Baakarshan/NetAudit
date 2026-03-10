@@ -146,7 +146,7 @@ class MainTest {
         mockkConstructor(AlertEngine::class)
         every { anyConstructed<BatchWriter>().start() } just Runs
         every { anyConstructed<AuditPipeline>().start() } just Runs
-        every { anyConstructed<AlertEngine>().start() } just Runs
+        every { anyConstructed<AlertEngine>().start() } returns mockk(relaxed = true)
 
         try {
             application {
@@ -186,7 +186,7 @@ class MainTest {
         mockkConstructor(AlertEngine::class)
         every { anyConstructed<BatchWriter>().start() } just Runs
         every { anyConstructed<AuditPipeline>().start() } just Runs
-        every { anyConstructed<AlertEngine>().start() } just Runs
+        every { anyConstructed<AlertEngine>().start() } returns mockk(relaxed = true)
 
         try {
             application {
