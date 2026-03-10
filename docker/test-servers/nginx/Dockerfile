@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-RUN mkdir -p /usr/share/nginx/html/admin && \
+RUN mkdir -p /usr/share/nginx/html/admin /usr/share/nginx/html/api && \
     echo '<h1>Welcome to NetAudit Test</h1>' > /usr/share/nginx/html/index.html && \
     echo '<h1>Admin Panel (Sensitive!)</h1>' > /usr/share/nginx/html/admin/index.html && \
     echo '<h1>Secret Page</h1>' > /usr/share/nginx/html/admin/secret.html && \

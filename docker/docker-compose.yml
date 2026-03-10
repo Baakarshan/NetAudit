@@ -35,6 +35,7 @@ services:
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-netaudit}
       CAPTURE_INTERFACE: eth0
       CAPTURE_PROMISCUOUS: "true"
+      SystemRoot: "/"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     cap_add:
@@ -117,6 +118,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.test-client
     container_name: netaudit-test-client
+    network_mode: "service:backend"
     depends_on:
       - test-nginx
       - test-ftp
@@ -124,9 +126,6 @@ services:
       - test-dns
       - test-smtp
       - test-pop3
-    networks:
-      audit-net:
-        ipv4_address: 172.28.0.100
 
 volumes:
   pgdata:

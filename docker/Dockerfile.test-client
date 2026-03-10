@@ -5,7 +5,7 @@ RUN apk add --no-cache \
     bind-tools \
     netcat-openbsd \
     bash \
-    ftp \
+    lftp \
     tcpdump
 COPY scripts/ /scripts/
 COPY test-data/ /test-data/
