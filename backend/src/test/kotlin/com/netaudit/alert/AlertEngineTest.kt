@@ -2,18 +2,15 @@ package com.netaudit.alert
 
 import com.netaudit.event.AuditEventBus
 import com.netaudit.model.AlertLevel
-import com.netaudit.model.AlertRecord
 import com.netaudit.model.AlertRule
 import com.netaudit.model.AuditEvent
-import com.netaudit.model.ProtocolType
 import com.netaudit.storage.AlertRepository
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.Clock
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -37,14 +34,7 @@ class AlertEngineTest {
             rules = listOf(rule)
         )
         engine.start()
-
-        val received = mutableListOf<AlertRecord>()
-        val collectJob = launch {
-            eventBus.alertEvents.collect { alert ->
-                received.add(alert)
-                if (received.size >= 1) cancel()
-            }
-        }
+        advanceUntilIdle()
 
         val event = AuditEvent.HttpEvent(
             id = "event-1",
@@ -58,10 +48,10 @@ class AlertEngineTest {
             host = "example.com"
         )
         eventBus.emitAudit(event)
+        val alert = withTimeout(1_000) { eventBus.alertEvents.first() }
         advanceUntilIdle()
 
         coVerify { repository.save(any()) }
-        assertTrue(received.isNotEmpty())
-        collectJob.cancelAndJoin()
+        assertTrue(alert.auditEventId == event.id)
     }
 }
