@@ -10,6 +10,7 @@ import com.netaudit.model.StreamKey
 import com.netaudit.model.TransportProtocol
 import com.netaudit.parser.email.EmailHeaderParser
 import com.netaudit.parser.email.Pop3SessionState
+import com.netaudit.parser.email.SmtpPhase
 import com.netaudit.parser.email.SmtpSessionState
 import com.netaudit.parser.ftp.FtpPhase
 import com.netaudit.storage.tables.AlertsTable
@@ -135,6 +136,34 @@ class ModelDefaultCoverageTest {
         assertEquals(null, pop3State.username)
         assertTrue(!pop3State.inRetrMode)
         assertEquals(0, pop3State.retrBuffer.length)
+
+        val pop3Custom = Pop3SessionState(
+            username = "bob",
+            inRetrMode = true,
+            retrBuffer = StringBuilder("data")
+        )
+        assertEquals("bob", pop3Custom.username)
+        assertTrue(pop3Custom.inRetrMode)
+        assertEquals("data", pop3Custom.retrBuffer.toString())
+
+        val smtpCustom = SmtpSessionState(
+            phase = SmtpPhase.DATA_MODE,
+            from = "alice@example.com",
+            to = mutableListOf("bob@example.com"),
+            subject = "hi",
+            dataBuffer = StringBuilder("body"),
+            inDataMode = true,
+            attachmentNames = mutableListOf("a.txt"),
+            attachmentSizes = mutableListOf(10)
+        )
+        assertEquals(SmtpPhase.DATA_MODE, smtpCustom.phase)
+        assertEquals("alice@example.com", smtpCustom.from)
+        assertEquals(1, smtpCustom.to.size)
+        assertEquals("hi", smtpCustom.subject)
+        assertEquals("body", smtpCustom.dataBuffer.toString())
+        assertTrue(smtpCustom.inDataMode)
+        assertEquals(1, smtpCustom.attachmentNames.size)
+        assertEquals(1, smtpCustom.attachmentSizes.size)
 
         assertTrue(!FtpPhase.IDLE.isAuthenticated())
     }

@@ -192,6 +192,66 @@ class DnsParserTest {
     }
 
     @Test
+    fun `test response with truncated A record length`() {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x8180.toShort())
+            .putShort(1)
+            .putShort(1)
+            .putShort(0)
+            .putShort(0)
+            .array()
+        val qname = encodeDomain("example.com")
+        val question = ByteBuffer.allocate(4)
+            .putShort(1)
+            .putShort(1)
+            .array()
+        val answer = ByteBuffer.allocate(12 + 2)
+            .putShort(0xC00C.toShort())
+            .putShort(1)
+            .putShort(1)
+            .putInt(60)
+            .putShort(4)
+            .put(byteArrayOf(1, 2))
+            .array()
+        val payload = header + qname + question + answer
+
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
+    fun `test response with truncated AAAA record length`() {
+        val header = ByteBuffer.allocate(12)
+            .putShort(0x1234)
+            .putShort(0x8180.toShort())
+            .putShort(1)
+            .putShort(1)
+            .putShort(0)
+            .putShort(0)
+            .array()
+        val qname = encodeDomain("example.com")
+        val question = ByteBuffer.allocate(4)
+            .putShort(28)
+            .putShort(1)
+            .array()
+        val answer = ByteBuffer.allocate(12 + 4)
+            .putShort(0xC00C.toShort())
+            .putShort(28)
+            .putShort(1)
+            .putInt(60)
+            .putShort(16)
+            .put(byteArrayOf(1, 2, 3, 4))
+            .array()
+        val payload = header + qname + question + answer
+
+        val context = buildContext(payload, srcIp = "8.8.8.8", dstIp = "192.168.1.100")
+        val event = parser.parse(context) as com.netaudit.model.AuditEvent.DnsEvent
+        assertTrue(event.resolvedIps.isEmpty())
+    }
+
+    @Test
     fun `test qdcount zero returns null`() {
         val header = ByteBuffer.allocate(12)
             .putShort(0x1234)

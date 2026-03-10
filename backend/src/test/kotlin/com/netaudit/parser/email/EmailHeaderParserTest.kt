@@ -44,6 +44,14 @@ class EmailHeaderParserTest {
     }
 
     @Test
+    fun `test recipients all blank`() {
+        val headers = EmailHeaderParser.parseHeaders(
+            "To:   ,   ,  \r\n\r\n"
+        )
+        assertTrue(headers.to.isEmpty())
+    }
+
+    @Test
     fun `test boundary extraction`() {
         val headers = EmailHeaderParser.parseHeaders(
             "Content-Type: multipart/mixed; boundary=\"----=_Part_123\"\r\n\r\n"
