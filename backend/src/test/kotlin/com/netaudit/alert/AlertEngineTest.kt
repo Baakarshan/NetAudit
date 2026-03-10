@@ -7,6 +7,7 @@ import com.netaudit.model.AuditEvent
 import com.netaudit.storage.AlertRepository
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -37,7 +38,9 @@ class AlertEngineTest {
         engine.start()
         advanceUntilIdle()
 
-        val alertDeferred = async { eventBus.alertEvents.first() }
+        val alertDeferred = async(start = CoroutineStart.UNDISPATCHED) {
+            eventBus.alertEvents.first()
+        }
 
         val event = AuditEvent.HttpEvent(
             id = "event-1",
