@@ -30,7 +30,7 @@ class AlertEngineTest {
         val engine = AlertEngine(
             eventBus = eventBus,
             alertRepository = repository,
-            scope = this,
+            scope = backgroundScope,
             rules = listOf(rule)
         )
         engine.start()
