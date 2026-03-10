@@ -9,6 +9,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import org.pcap4j.core.PcapHandle
 import org.pcap4j.core.PcapNativeException
+import org.pcap4j.core.PcapNetworkInterface
 import org.pcap4j.core.PcapNetworkInterface.PromiscuousMode
 import org.pcap4j.core.Pcaps
 import org.pcap4j.packet.Packet
@@ -189,8 +190,7 @@ internal class PcapPacketSource(private val handle: PcapHandle) : PacketSource {
 
 internal object PcapPacketSourceFactory : PacketSourceFactory {
     override fun openLive(config: CaptureConfig): PacketSource {
-        val nif = Pcaps.getDevByName(config.interfaceName)
-            ?: throw PcapNativeException("Network interface not found: ${config.interfaceName}")
+        val nif = resolveInterface(config.interfaceName)
         val handle = nif.openLive(
             config.snapshotLength,
             if (config.promiscuous) PromiscuousMode.PROMISCUOUS
@@ -198,6 +198,50 @@ internal object PcapPacketSourceFactory : PacketSourceFactory {
             config.readTimeoutMs
         )
         return PcapPacketSource(handle)
+    }
+
+    private fun resolveInterface(interfaceName: String): PcapNetworkInterface {
+        val normalized = normalizeInterfaceName(interfaceName)
+        val direct = Pcaps.getDevByName(normalized)
+        if (direct != null) {
+            return direct
+        }
+
+        val trimmed = normalized.trim()
+        val all = Pcaps.findAllDevs() ?: emptyList()
+        if (all.isEmpty()) {
+            throw PcapNativeException("No network interfaces found by Pcap4J")
+        }
+
+        val byDescription = all.firstOrNull {
+            it.description?.contains(trimmed, ignoreCase = true) == true
+        }
+        val byNameEquals = all.firstOrNull { it.name.equals(trimmed, ignoreCase = true) }
+        val byNameContains = all.firstOrNull { it.name.contains(trimmed, ignoreCase = true) }
+
+        val resolved = byDescription ?: byNameEquals ?: byNameContains
+        if (resolved != null) {
+            logger.info {
+                "Resolved capture interface '$interfaceName' to '${resolved.name}' " +
+                "(${resolved.description ?: "no-desc"})"
+            }
+            return resolved
+        }
+
+        val available = all.joinToString(separator = "; ") {
+            "${it.name} (${it.description ?: "no-desc"})"
+        }
+        throw PcapNativeException(
+            "Network interface not found: $normalized. Available: $available"
+        )
+    }
+
+    private fun normalizeInterfaceName(value: String): String {
+        return value.trim()
+            .replace("\\\\Device\\\\NPF_", "\\Device\\NPF_")
+            .replace("\\\\", "\\")
+            .replace("{{", "{")
+            .replace("}}", "}")
     }
 
     override fun openOffline(pcapFilePath: String): PacketSource {
