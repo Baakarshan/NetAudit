@@ -15,6 +15,18 @@ echo ""
 echo -e "${YELLOW}[0/6] Waiting for services...${NC}"
 sleep 3
 
+FTP_MODE=""
+if command -v ftp >/dev/null 2>&1; then
+  FTP_MODE="ftp"
+elif command -v lftp >/dev/null 2>&1; then
+  FTP_MODE="lftp"
+elif command -v busybox >/dev/null 2>&1 && busybox --list | grep -x ftp >/dev/null 2>&1; then
+  FTP_MODE="busybox"
+else
+  echo "未找到FTP客户端，请安装ftp或lftp或busybox-extras。" >&2
+  exit 1
+fi
+
 echo -e "${GREEN}[1/6] Testing HTTP...${NC}"
 curl -s -o /dev/null http://172.28.0.20/index.html
 curl -s -o /dev/null http://172.28.0.20/admin/secret.html
@@ -22,7 +34,17 @@ curl -s -o /dev/null http://172.28.0.20/api/users.json
 sleep 1
 
 echo -e "${GREEN}[2/6] Testing FTP...${NC}"
-ftp -n 172.28.0.11 <<FTPEOF
+FTP_HOST="172.28.0.11"
+FTP_PORT="21"
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  if nc -z -w 1 "$FTP_HOST" "$FTP_PORT" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+if [ "$FTP_MODE" = "ftp" ]; then
+  ftp -n "$FTP_HOST" <<FTPEOF
 user alice password123
 pwd
 cd pub
@@ -32,6 +54,20 @@ cd /
 get secret.doc /dev/null
 quit
 FTPEOF
+elif [ "$FTP_MODE" = "lftp" ]; then
+  lftp -u alice,password123 "$FTP_HOST" -e "set net:timeout 10; set net:max-retries 1; set ftp:ssl-allow no; set ftp:passive-mode off; set xfer:clobber yes; pwd; cd pub; ls; get README.txt -o /tmp/README.txt; cd /; get secret.doc -o /tmp/secret.doc; bye"
+else
+  busybox ftp -n "$FTP_HOST" <<FTPEOF
+user alice password123
+pwd
+cd pub
+ls
+get README.txt /dev/null
+cd /
+get secret.doc /dev/null
+quit
+FTPEOF
+fi
 sleep 1
 
 echo -e "${GREEN}[3/6] Testing TELNET...${NC}"
@@ -50,9 +86,9 @@ echo -e "${GREEN}[3/6] Testing TELNET...${NC}"
 sleep 1
 
 echo -e "${GREEN}[4/6] Testing DNS...${NC}"
-nslookup example.com 172.28.0.13 || true
-nslookup test.local 172.28.0.13 || true
-nslookup malicious-very-long-domain-name-that-might-be-a-dns-tunnel-attempt.evil.com 172.28.0.13 || true
+nslookup -timeout=2 -retry=1 example.com 172.28.0.13 || true
+nslookup -timeout=2 -retry=1 test.local 172.28.0.13 || true
+nslookup -timeout=2 -retry=1 very-long-domain-name-that-might-be-a-dns-tunnel.example.com 172.28.0.13 || true
 sleep 1
 
 echo -e "${GREEN}[5/6] Testing SMTP...${NC}"
@@ -91,7 +127,7 @@ else
     echo "------=_TestBoundary--"
     echo "."
     sleep 1; echo "QUIT"
-  } | nc 172.28.0.14 25 || true
+  } | nc -w 5 172.28.0.14 25 || true
 fi
 sleep 1
 

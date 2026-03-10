@@ -24,4 +24,4 @@ set -e
   echo "------=_TestBoundary--"
   echo "."
   sleep 1; echo "QUIT"
-} | nc 172.28.0.14 25 || true
+} | nc -w 5 172.28.0.14 25 || true
