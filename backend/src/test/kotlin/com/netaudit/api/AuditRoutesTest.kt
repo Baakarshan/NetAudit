@@ -228,6 +228,22 @@ class AuditRoutesTest {
     }
 
     @Test
+    fun `GET audit recent lower bound`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findRecent(1) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/recent?limit=0")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findRecent(1) }
+    }
+
+    @Test
     fun `GET audit by id`() = testApplication {
         environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
@@ -349,6 +365,22 @@ class AuditRoutesTest {
         val response = client.get("/api/alerts/recent?limit=abc")
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { alertRepo.findRecent(20) }
+    }
+
+    @Test
+    fun `GET alerts recent lower bound`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { alertRepo.findRecent(1) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { alertRoutes(alertRepo) }
+        }
+
+        val response = client.get("/api/alerts/recent?limit=0")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { alertRepo.findRecent(1) }
     }
 
     @Test

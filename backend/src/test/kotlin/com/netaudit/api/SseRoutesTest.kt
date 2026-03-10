@@ -120,6 +120,20 @@ class SseRoutesTest {
         assertTrue(true)
     }
 
+    @Test
+    fun `handleSseSession completes on empty flows`() = runTest {
+        val output = StringBuilder()
+        handleSseSession(
+            auditEvents = emptyFlow(),
+            alertEvents = emptyFlow(),
+            auditEncoder = { "" },
+            alertEncoder = { "" },
+            writeLine = { line -> output.append(line) },
+            flush = { }
+        )
+        assertTrue(output.contains(": connected"))
+    }
+
     private fun sampleHttpEvent(): AuditEvent.HttpEvent = AuditEvent.HttpEvent(
         id = "event-1",
         timestamp = Clock.System.now(),

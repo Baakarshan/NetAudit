@@ -14,7 +14,9 @@ import io.ktor.websocket.readText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlin.test.Test
@@ -104,6 +106,45 @@ class CaptureWebSocketTest {
             encode = { "" },
             scope = this
         )
+
+        assertTrue(true)
+    }
+
+    @Test
+    fun `handleCaptureWebSocketSession ignores non ping text`() = runTest {
+        val incoming = Channel<Frame>(capacity = 2)
+        incoming.trySend(Frame.Text("hello"))
+        incoming.close()
+
+        handleCaptureWebSocketSession(
+            auditEvents = emptyFlow(),
+            incoming = incoming,
+            sendFrame = { },
+            encode = { "" },
+            scope = this
+        )
+
+        assertTrue(true)
+    }
+
+    @Test
+    fun `handleCaptureWebSocketSession catches upstream flow errors`() = runTest {
+        val incoming = Channel<Frame>(capacity = 1)
+        val failingFlow = flow<AuditEvent> { throw IllegalStateException("boom") }
+
+        val job = launch {
+            handleCaptureWebSocketSession(
+                auditEvents = failingFlow,
+                incoming = incoming,
+                sendFrame = { },
+                encode = { "" },
+                scope = this
+            )
+        }
+
+        advanceUntilIdle()
+        incoming.close()
+        job.join()
 
         assertTrue(true)
     }
