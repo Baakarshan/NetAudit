@@ -7,6 +7,7 @@ import com.netaudit.model.AuditEvent
 import com.netaudit.storage.AlertRepository
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import java.util.UUID
@@ -19,8 +20,8 @@ class AlertEngine(
     private val scope: CoroutineScope,
     private val rules: List<AlertRule> = DefaultAlertRules.all()
 ) {
-    fun start() {
-        scope.launch {
+    fun start(): Job {
+        return scope.launch {
             logger.info { "AlertEngine started with ${rules.size} rules" }
             eventBus.auditEvents.collect { event ->
                 for (rule in rules) {

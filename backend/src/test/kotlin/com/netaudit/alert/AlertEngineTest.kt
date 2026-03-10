@@ -9,6 +9,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -32,13 +33,10 @@ class AlertEngineTest {
         val engine = AlertEngine(
             eventBus = eventBus,
             alertRepository = repository,
-            scope = backgroundScope,
+            scope = this,
             rules = listOf(rule)
         )
-        engine.start()
-        withTimeout(1_000) {
-            eventBus.auditEvents.subscriptionCount.first { it > 0 }
-        }
+        val engineJob = engine.start()
 
         val alertDeferred = async(start = CoroutineStart.UNDISPATCHED) {
             eventBus.alertEvents.first()
@@ -61,5 +59,6 @@ class AlertEngineTest {
 
         coVerify { repository.save(any()) }
         assertTrue(alert.auditEventId == event.id)
+        engineJob.cancelAndJoin()
     }
 }
