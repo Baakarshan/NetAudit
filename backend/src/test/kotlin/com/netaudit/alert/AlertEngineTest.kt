@@ -36,7 +36,9 @@ class AlertEngineTest {
             rules = listOf(rule)
         )
         engine.start()
-        advanceUntilIdle()
+        withTimeout(1_000) {
+            eventBus.auditEvents.subscriptionCount.first { it > 0 }
+        }
 
         val alertDeferred = async(start = CoroutineStart.UNDISPATCHED) {
             eventBus.alertEvents.first()
