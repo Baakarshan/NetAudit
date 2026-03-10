@@ -9,6 +9,7 @@ import com.netaudit.model.ProtocolType
 import com.netaudit.storage.AlertRepository
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
