@@ -196,6 +196,22 @@ class AuditRoutesTest {
     }
 
     @Test
+    fun `GET audit recent default limit`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val auditRepo = mockk<AuditRepository>()
+        coEvery { auditRepo.findRecent(20) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { auditRoutes(auditRepo) }
+        }
+
+        val response = client.get("/api/audit/recent")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { auditRepo.findRecent(20) }
+    }
+
+    @Test
     fun `GET audit recent limit bounded`() = testApplication {
         environment { config = MapApplicationConfig() }
         val auditRepo = mockk<AuditRepository>()
@@ -349,6 +365,38 @@ class AuditRoutesTest {
         val response = client.get("/api/alerts/recent?limit=3")
         assertEquals(HttpStatusCode.OK, response.status)
         coVerify { alertRepo.findRecent(3) }
+    }
+
+    @Test
+    fun `GET alerts recent default limit`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { alertRepo.findRecent(20) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { alertRoutes(alertRepo) }
+        }
+
+        val response = client.get("/api/alerts/recent")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { alertRepo.findRecent(20) }
+    }
+
+    @Test
+    fun `GET alerts recent upper bound`() = testApplication {
+        environment { config = MapApplicationConfig() }
+        val alertRepo = mockk<AlertRepository>()
+        coEvery { alertRepo.findRecent(100) } returns emptyList()
+
+        application {
+            install(ContentNegotiation) { json(AppJson) }
+            routing { alertRoutes(alertRepo) }
+        }
+
+        val response = client.get("/api/alerts/recent?limit=1000")
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { alertRepo.findRecent(100) }
     }
 
     @Test
