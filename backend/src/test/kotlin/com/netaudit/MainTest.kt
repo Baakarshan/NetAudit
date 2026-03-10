@@ -21,6 +21,7 @@ import io.ktor.server.testing.testApplication
 import io.mockk.every
 import io.mockk.Runs
 import io.mockk.just
+import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.unmockkAll
 import io.mockk.verify
