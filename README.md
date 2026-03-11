@@ -347,7 +347,7 @@ docker compose up -d --no-deps --force-recreate test-client
 
 - 默认端口：前端 5173、后端 8080、数据库 5432（可在 `.env` 覆盖）。
 
-### 方式 B：本地开发（含真实实时抓包）
+### 方式 B：本地开发（含真实实时抓包 / 操作A）
 
 本地依赖：
 - JDK 21
@@ -355,6 +355,8 @@ docker compose up -d --no-deps --force-recreate test-client
 - PostgreSQL 15+
 - libpcap/Npcap
 - Node.js 20+
+
+适用：要抓**宿主机浏览器流量**，必须走本方式；Docker 方案只能抓容器内流量。
 
 1. 启动数据库（可用 Docker）。
 
@@ -379,7 +381,11 @@ $env:CAPTURE_INTERFACE="\\Device\\NPF_{GUID}"
 
 Linux/Mac 通常直接使用 `eth0`。
 
-3. 启动后端（如端口 8080 被占用，改为 8081）。
+3. 关闭浏览器 QUIC（否则 HTTPS 走 UDP 443，当前不会解析）。
+
+- Chrome/Edge：打开 `chrome://flags/#enable-quic`，设为 `Disabled`，重启浏览器。
+
+4. 启动后端（如端口 8080 被占用，改为 8081）。
 
 ```
 cd backend
@@ -394,7 +400,7 @@ export JAVA_TOOL_OPTIONS="-Dktor.deployment.port=8081"
 ./gradlew run
 ```
 
-4. 启动前端并指向后端端口。
+5. 启动前端并指向后端端口。
 
 方式 1：直接指定 API 基址。
 
@@ -413,7 +419,7 @@ $env:VITE_API_BASE="/"
 $env:VITE_WS_URL="ws://127.0.0.1:8081"
 ```
 
-5. 验证实时链路。
+6. 验证实时链路。
 
 ```
 Invoke-RestMethod -Uri "http://127.0.0.1:8081/api/stats/dashboard"
@@ -421,6 +427,15 @@ curl.exe -s -N --max-time 3 http://127.0.0.1:8081/api/sse/events
 ```
 
 看到 `: connected` 且 `totalEvents` 增长，即实时链路 OK。
+
+7. 浏览器访问 HTTPS 站点后检查 TLS 事件。
+
+```
+Invoke-WebRequest -Uri "https://example.com" -UseBasicParsing | Out-Null
+Invoke-RestMethod -Uri "http://127.0.0.1:8081/api/audit/recent?limit=5"
+```
+
+预期：出现 `protocol=TLS` 事件，字段包含 `serverName`/`alpn`/`clientVersion`。
 
 ### 方式 C：离线回放（无需真实网络流量）
 
