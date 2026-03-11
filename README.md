@@ -6,10 +6,12 @@
 - 在线抓包（网卡）与离线 pcap 回放
 - L2-L4 解码生成 `PacketMetadata` 元数据
 - TCP 流重组与会话状态维护，UDP 直通解析
-- 端口路由与协议解析（HTTP/FTP/TELNET/DNS/SMTP/POP3）
+- 端口路由与协议解析（HTTP/FTP/TELNET/DNS/SMTP/POP3/TLS）
+- TLS/HTTPS 握手解析（SNI/ALPN/版本）
 - 事件总线分发（审计事件/告警事件）与下游并行订阅
 - 批量写库与告警持久化，支持失败重试
 - 实时推送（SSE/WebSocket）与查询统计 API
+- 实时指标面板（QPS/近 1 分钟/活跃协议）
 - 统一审计事件模型与多态 JSON 序列化（`AppJson`）
 - PostgreSQL JSONB 存储与 GIN 索引
 - 捕获与告警参数可配置并支持环境变量覆盖
@@ -52,7 +54,7 @@ CaptureEngine → PacketDecoder → TcpStreamTracker → ProtocolParser → Audi
 - `capture`：抓包与离线回放
 - `decode`：L2-L4 解码并生成 `PacketMetadata`
 - `stream`：TCP 流重组与会话状态管理，UDP 直通
-- `parser`：按端口路由并解析协议
+- `parser`：按端口路由并解析协议（含 TLS 握手元数据）
 - `event`：审计/告警事件总线
 - `storage`：Exposed + PostgreSQL 持久化
 - `alert`：告警规则与告警生成
@@ -109,7 +111,7 @@ HTTP API：
 `/api/audit/logs` 查询参数：
 - `page`：页码，默认 0
 - `size`：每页数量，默认 50，范围 1-200
-- `protocol`：协议名，支持 `HTTP/FTP/TELNET/DNS/SMTP/POP3`
+- `protocol`：协议名，支持 `HTTP/FTP/TELNET/DNS/SMTP/POP3/TLS`
 - `srcIp`：源 IP 精确匹配
 - `start`/`end`：ISO-8601 时间，闭区间
 
@@ -325,7 +327,7 @@ docker exec netaudit-test-client bash /scripts/test-all-protocols.sh
 curl http://localhost:8080/api/stats/dashboard
 ```
 
-若 `totalEvents` > 0，说明抓包与入库正常。
+若 `totalEvents` > 0，说明抓包与入库正常。Dashboard 中的实时指标（QPS/近 1 分钟/活跃协议）会同步变化。
 
 9. 停止与清理。
 
@@ -461,9 +463,10 @@ $env:INTEGRATION_DATABASE_PASSWORD="netaudit"
 
 ## 协议显示与解析边界（重要）
 
-当前解析协议范围：HTTP、FTP、TELNET、DNS、SMTP、POP3。
+当前解析协议范围：HTTP、FTP、TELNET、DNS、SMTP、POP3、TLS。
 
 HTTPS/QUIC 流量会被加密，系统不会还原 URL 或正文，因此你通常会看到 DNS 事件占比很高。这是正常现象。
+系统会输出 TLS 事件（SNI/ALPN/版本），但不会解密正文。
 
 要看到 HTTP 事件，请访问明文 HTTP 站点，例如：
 
@@ -493,6 +496,11 @@ curl http://localhost:8080/api/stats/protocols
 HTTP：
 ```
 Invoke-WebRequest -Uri "http://example.com" -UseBasicParsing | Out-Null
+```
+
+TLS（SNI/ALPN）：
+```
+Invoke-WebRequest -Uri "https://example.com" -UseBasicParsing | Out-Null
 ```
 
 DNS：
