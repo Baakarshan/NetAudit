@@ -18,6 +18,7 @@ val AppJson = Json {
             subclass(AuditEvent.DnsEvent::class)
             subclass(AuditEvent.SmtpEvent::class)
             subclass(AuditEvent.Pop3Event::class)
+            subclass(AuditEvent.TlsEvent::class)
         }
     }
 }

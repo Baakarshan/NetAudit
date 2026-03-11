@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class ProtocolType {
-    HTTP, FTP, TELNET, DNS, SMTP, POP3
+    HTTP, FTP, TELNET, DNS, SMTP, POP3, TLS
 }
 
 @Serializable

@@ -136,4 +136,21 @@ sealed interface AuditEvent {
         val attachmentSizes: List<Int> = emptyList(),
         val mailSize: Int? = null
     ) : AuditEvent
+
+    @Serializable
+    @SerialName("TLS")
+    data class TlsEvent(
+        override val id: String,
+        override val timestamp: Instant,
+        override val srcIp: String,
+        override val dstIp: String,
+        override val srcPort: Int,
+        override val dstPort: Int,
+        @Transient override val protocol: ProtocolType = ProtocolType.TLS,
+        override val alertLevel: AlertLevel = AlertLevel.INFO,
+        val serverName: String? = null,           // SNI
+        val alpn: List<String> = emptyList(),     // ALPN 协商协议
+        val clientVersion: String? = null,        // ClientHello 版本
+        val supportedVersions: List<String> = emptyList() // Supported Versions 扩展
+    ) : AuditEvent
 }

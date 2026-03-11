@@ -16,6 +16,7 @@ import com.netaudit.parser.telnet.TelnetParser
 import com.netaudit.parser.dns.DnsParser
 import com.netaudit.parser.email.SmtpParser
 import com.netaudit.parser.email.Pop3Parser
+import com.netaudit.parser.tls.TlsParser
 import com.netaudit.storage.DatabaseFactory
 import com.netaudit.storage.BatchWriter
 import com.netaudit.storage.impl.ExposedAlertRepository
@@ -89,6 +90,7 @@ fun Application.module(
     registry.register(DnsParser())
     registry.register(SmtpParser())
     registry.register(Pop3Parser())
+    registry.register(TlsParser())
 
     // 初始化数据库
     databaseInit(config.database)
