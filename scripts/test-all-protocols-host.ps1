@@ -1,7 +1,9 @@
 $ErrorActionPreference = 'Stop'
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  NetAudit — 宿主机全协议流量生成" -ForegroundColor Cyan
+Write-Host "  NetAudit - Host Traffic Generator" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -58,35 +60,35 @@ $client.Close()
 Start-Sleep -Seconds 1
 
 Write-Host "[4/6] DNS" -ForegroundColor Green
-Resolve-DnsName "example.com" -Server $dnsHost -Port $dnsPort | Out-Null
-Resolve-DnsName "test.local" -Server $dnsHost -Port $dnsPort | Out-Null
-Resolve-DnsName "very-long-domain-name-that-might-be-a-dns-tunnel.example.com" -Server $dnsHost -Port $dnsPort | Out-Null
+try { Resolve-DnsName "example.com" -Server "8.8.8.8" | Out-Null } catch {}
+try { Resolve-DnsName "test.local" -Server "8.8.8.8" | Out-Null } catch {}
+try { Resolve-DnsName "very-long-domain-name-that-might-be-a-dns-tunnel.example.com" -Server "8.8.8.8" | Out-Null } catch {}
 Start-Sleep -Seconds 1
 
 Write-Host "[5/6] SMTP" -ForegroundColor Green
 $smtpLines = @(
-  "EHLO testclient",
-  "MAIL FROM:<alice@test.com>",
-  "RCPT TO:<bob@test.com>",
-  "DATA",
-  "From: alice@test.com",
-  "To: bob@test.com",
-  "Subject: Quarterly Report",
-  "Content-Type: multipart/mixed; boundary=\"----=_TestBoundary\"",
-  "",
-  "------=_TestBoundary",
-  "Content-Type: text/plain",
-  "",
-  "Please see attached.",
-  "------=_TestBoundary",
-  "Content-Type: application/pdf; name=\"report.pdf\"",
-  "Content-Disposition: attachment; filename=\"report.pdf\"",
-  "Content-Transfer-Encoding: base64",
-  "",
-  "JVBERi0xLjQKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwo=",
-  "------=_TestBoundary--",
-  ".",
-  "QUIT"
+  'EHLO testclient',
+  'MAIL FROM:<alice@test.com>',
+  'RCPT TO:<bob@test.com>',
+  'DATA',
+  'From: alice@test.com',
+  'To: bob@test.com',
+  'Subject: Quarterly Report',
+  'Content-Type: multipart/mixed; boundary="----=_TestBoundary"',
+  '',
+  '------=_TestBoundary',
+  'Content-Type: text/plain',
+  '',
+  'Please see attached.',
+  '------=_TestBoundary',
+  'Content-Type: application/pdf; name="report.pdf"',
+  'Content-Disposition: attachment; filename="report.pdf"',
+  'Content-Transfer-Encoding: base64',
+  '',
+  'JVBERi0xLjQKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwo=',
+  '------=_TestBoundary--',
+  '.',
+  'QUIT'
 )
 $smtpPayload = ($smtpLines -join "`r`n") + "`r`n"
 $client = New-Object System.Net.Sockets.TcpClient
@@ -120,5 +122,5 @@ $client.Close()
 Start-Sleep -Seconds 1
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  宿主机流量已生成，查看 Dashboard" -ForegroundColor Cyan
+Write-Host "  Host traffic generated. Check Dashboard" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
