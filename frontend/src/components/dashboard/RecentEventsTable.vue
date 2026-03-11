@@ -2,7 +2,11 @@
   <el-card class="table-card">
     <div class="card-title">最近事件</div>
     <el-table :data="rows" height="360" stripe>
-      <el-table-column prop="timestamp" label="时间" width="180" />
+      <el-table-column label="时间" width="200">
+        <template #default="scope">
+          {{ formatTimestamp(scope.row?.timestamp) }}
+        </template>
+      </el-table-column>
       <el-table-column label="协议" width="110">
         <template #default="scope">
           <el-tag :style="{ background: protocolColor(rowProtocol(scope.row)), color: '#fff', border: 'none' }">
@@ -33,6 +37,21 @@ const rows = computed(() => props.events.slice(0, 20))
 const rowProtocol = (row: unknown) => (row as any)?.protocol ?? 'UNKNOWN'
 
 const protocolColor = (protocol: string) => PROTOCOL_COLORS[protocol] || '#64748b'
+
+const formatTimestamp = (value: unknown) => {
+  if (!value) return ''
+  const date = new Date(value as any)
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
 
 const summary = (event: unknown) => {
   const e = event as any

@@ -12,6 +12,35 @@ export const useAuditStore = defineStore('audit', () => {
   let currentSecondCount = 0
   let currentSecond = 0
 
+  const pushTimelinePoint = (second: number, count: number) => {
+    timelineData.value.push({
+      time: new Date(second * 1000).toLocaleTimeString(),
+      count
+    })
+    if (timelineData.value.length > 60) {
+      timelineData.value.shift()
+    }
+  }
+
+  const seedTimelineFromEvents = (events: AuditEvent[]) => {
+    const buckets = new Map<number, number>()
+    for (const event of events) {
+      const ts = Math.floor(new Date(event.timestamp).getTime() / 1000)
+      buckets.set(ts, (buckets.get(ts) ?? 0) + 1)
+    }
+    const sorted = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0])
+    const tail = sorted.slice(-60)
+    timelineData.value = tail.map(([second, count]) => ({
+      time: new Date(second * 1000).toLocaleTimeString(),
+      count
+    }))
+    if (tail.length > 0) {
+      const [lastSecond, lastCount] = tail[tail.length - 1]
+      currentSecond = lastSecond
+      currentSecondCount = lastCount
+    }
+  }
+
   const totalEvents = computed(() => stats.value?.totalEvents ?? 0)
   const protocolCounts = computed(() => stats.value?.protocolCounts ?? {})
   const alertCounts = computed(() => stats.value?.alertCounts ?? {})
@@ -55,6 +84,7 @@ export const useAuditStore = defineStore('audit', () => {
       stats.value = dashRes.data
       recentEvents.value = eventsRes.data
       recentAlerts.value = alertsRes.data
+      seedTimelineFromEvents(recentEvents.value)
     } catch (err) {
       console.error('Failed to load initial data', err)
     }
@@ -64,19 +94,18 @@ export const useAuditStore = defineStore('audit', () => {
     const now = Math.floor(Date.now() / 1000)
     if (now === currentSecond) {
       currentSecondCount += 1
-    } else {
-      if (currentSecond) {
-        timelineData.value.push({
-          time: new Date(currentSecond * 1000).toLocaleTimeString(),
-          count: currentSecondCount
-        })
-        if (timelineData.value.length > 60) {
-          timelineData.value.shift()
-        }
+      const last = timelineData.value[timelineData.value.length - 1]
+      if (last) {
+        last.count = currentSecondCount
+      } else {
+        pushTimelinePoint(now, currentSecondCount)
       }
-      currentSecond = now
-      currentSecondCount = 1
+      return
     }
+
+    currentSecond = now
+    currentSecondCount = 1
+    pushTimelinePoint(now, currentSecondCount)
   }
 
   return {
