@@ -4,7 +4,8 @@ export const PROTOCOL_COLORS: Record<string, string> = {
   TELNET: '#FF5722',
   DNS: '#9C27B0',
   SMTP: '#FF9800',
-  POP3: '#795548'
+  POP3: '#795548',
+  TLS: '#14B8A6'
 }
 
 export const ALERT_COLORS: Record<string, string> = {

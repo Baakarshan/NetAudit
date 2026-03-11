@@ -68,6 +68,15 @@ const summary = (event: unknown) => {
       return e.subject || '邮件发送'
     case 'POP3':
       return e.command
+    case 'TLS': {
+      const parts: string[] = []
+      if (e.serverName) parts.push(e.serverName)
+      if (Array.isArray(e.alpn) && e.alpn.length > 0) {
+        parts.push(`ALPN:${e.alpn.join('/')}`)
+      }
+      if (e.clientVersion) parts.push(e.clientVersion)
+      return parts.join(' ') || 'TLS 握手'
+    }
     default:
       return e?.protocol ?? ''
   }

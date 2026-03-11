@@ -1,4 +1,4 @@
-export type ProtocolType = 'HTTP' | 'FTP' | 'TELNET' | 'DNS' | 'SMTP' | 'POP3'
+export type ProtocolType = 'HTTP' | 'FTP' | 'TELNET' | 'DNS' | 'SMTP' | 'POP3' | 'TLS'
 export type AlertLevel = 'INFO' | 'WARN' | 'CRITICAL'
 
 export interface BaseAuditEvent {
@@ -70,6 +70,14 @@ export interface Pop3Event extends BaseAuditEvent {
   mailSize?: number
 }
 
+export interface TlsEvent extends BaseAuditEvent {
+  protocol: 'TLS'
+  serverName?: string
+  alpn: string[]
+  clientVersion?: string
+  supportedVersions: string[]
+}
+
 export type AuditEvent =
   | HttpEvent
   | FtpEvent
@@ -77,6 +85,7 @@ export type AuditEvent =
   | DnsEvent
   | SmtpEvent
   | Pop3Event
+  | TlsEvent
 
 export interface AlertRecord {
   id: string
