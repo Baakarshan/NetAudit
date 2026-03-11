@@ -9,8 +9,9 @@ export const useAuditStore = defineStore('audit', () => {
   const stats = ref<DashboardStats | null>(null)
 
   const timelineData = ref<{ time: string; count: number }[]>([])
-  let currentSecondCount = 0
-  let currentSecond = 0
+  const currentSecondCount = ref(0)
+  const currentSecond = ref(0)
+  const recentEventSeconds = ref<number[]>([])
 
   const pushTimelinePoint = (second: number, count: number) => {
     timelineData.value.push({
@@ -36,8 +37,8 @@ export const useAuditStore = defineStore('audit', () => {
     }))
     if (tail.length > 0) {
       const [lastSecond, lastCount] = tail[tail.length - 1]
-      currentSecond = lastSecond
-      currentSecondCount = lastCount
+      currentSecond.value = lastSecond
+      currentSecondCount.value = lastCount
     }
   }
 
@@ -46,6 +47,11 @@ export const useAuditStore = defineStore('audit', () => {
   const alertCounts = computed(() => stats.value?.alertCounts ?? {})
   const criticalAlertCount = computed(
     () => recentAlerts.value.filter(alert => alert.level === 'CRITICAL').length
+  )
+  const qps = computed(() => currentSecondCount.value)
+  const lastMinuteCount = computed(() => recentEventSeconds.value.length)
+  const activeProtocolCount = computed(() =>
+    Object.entries(protocolCounts.value).filter(([, count]) => count > 0).length
   )
 
   function addAuditEvent(event: AuditEvent) {
@@ -60,6 +66,7 @@ export const useAuditStore = defineStore('audit', () => {
       stats.value.protocolCounts[p] = (stats.value.protocolCounts[p] ?? 0) + 1
     }
 
+    recordRealtime()
     updateTimeline()
   }
 
@@ -85,6 +92,7 @@ export const useAuditStore = defineStore('audit', () => {
       recentEvents.value = eventsRes.data
       recentAlerts.value = alertsRes.data
       seedTimelineFromEvents(recentEvents.value)
+      seedRealtimeWindow(recentEvents.value)
     } catch (err) {
       console.error('Failed to load initial data', err)
     }
@@ -92,20 +100,35 @@ export const useAuditStore = defineStore('audit', () => {
 
   function updateTimeline() {
     const now = Math.floor(Date.now() / 1000)
-    if (now === currentSecond) {
-      currentSecondCount += 1
+    if (now === currentSecond.value) {
+      currentSecondCount.value += 1
       const last = timelineData.value[timelineData.value.length - 1]
       if (last) {
-        last.count = currentSecondCount
+        last.count = currentSecondCount.value
       } else {
-        pushTimelinePoint(now, currentSecondCount)
+        pushTimelinePoint(now, currentSecondCount.value)
       }
       return
     }
 
-    currentSecond = now
-    currentSecondCount = 1
-    pushTimelinePoint(now, currentSecondCount)
+    currentSecond.value = now
+    currentSecondCount.value = 1
+    pushTimelinePoint(now, currentSecondCount.value)
+  }
+
+  function recordRealtime() {
+    const now = Math.floor(Date.now() / 1000)
+    recentEventSeconds.value.push(now)
+    const threshold = now - 59
+    recentEventSeconds.value = recentEventSeconds.value.filter(ts => ts >= threshold)
+  }
+
+  function seedRealtimeWindow(events: AuditEvent[]) {
+    const now = Math.floor(Date.now() / 1000)
+    const threshold = now - 59
+    recentEventSeconds.value = events
+      .map(event => Math.floor(new Date(event.timestamp).getTime() / 1000))
+      .filter(ts => ts >= threshold && ts <= now)
   }
 
   return {
@@ -117,6 +140,9 @@ export const useAuditStore = defineStore('audit', () => {
     protocolCounts,
     alertCounts,
     criticalAlertCount,
+    qps,
+    lastMinuteCount,
+    activeProtocolCount,
     addAuditEvent,
     addAlert,
     loadInitialData

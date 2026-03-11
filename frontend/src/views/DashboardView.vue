@@ -7,6 +7,12 @@
       :critical-count="store.criticalAlertCount"
     />
 
+    <RealtimeMetricsRow
+      :qps="store.qps"
+      :last-minute="store.lastMinuteCount"
+      :active-protocols="store.activeProtocolCount"
+    />
+
     <el-row :gutter="16" class="charts-row">
       <el-col :xs="24" :md="12">
         <ProtocolPieChart :counts="store.protocolCounts" />
@@ -27,6 +33,7 @@ import StatsCardRow from '@/components/dashboard/StatsCardRow.vue'
 import ProtocolPieChart from '@/components/dashboard/ProtocolPieChart.vue'
 import TrafficTimeline from '@/components/dashboard/TrafficTimeline.vue'
 import RecentEventsTable from '@/components/dashboard/RecentEventsTable.vue'
+import RealtimeMetricsRow from '@/components/dashboard/RealtimeMetricsRow.vue'
 
 const store = useAuditStore()
 const alertTotal = computed(() =>
