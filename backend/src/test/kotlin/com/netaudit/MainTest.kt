@@ -89,7 +89,7 @@ class MainTest {
 
         val response = client.get("/health")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(6, registry.allParsers().size)
+        assertEquals(7, registry.allParsers().size)
         assertTrue(dbInitCalled)
         assertFalse(batchCalled)
         assertFalse(pipelineCalled)

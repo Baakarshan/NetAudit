@@ -2,6 +2,7 @@ package com.netaudit.capture
 
 import com.netaudit.config.CaptureConfig
 import io.mockk.mockk
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -13,6 +14,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PacketCaptureEngineTest {
     @Test
     fun `offline stops at end and closes channel`() = runTest {

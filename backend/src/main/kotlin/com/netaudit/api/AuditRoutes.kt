@@ -48,8 +48,8 @@ fun Route.auditRoutes(repository: AuditRepository) {
         }
 
         get("/{id}") {
-            val eventId = call.parameters["id"] ?: ""
-            if (eventId.isBlank()) {
+            val eventId = call.parameters["id"]
+            if (eventId.isNullOrBlank()) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Missing audit event id"))
                 return@get
             }

@@ -123,7 +123,7 @@ class BatchWriter(
             logger.error(e) { "Failed to flush ${batch.size} events: ${e.message}" }
 
             // 使用批次首条事件作为重试计数键，保证同一批次退避一致
-            val firstEventId = batch.firstOrNull()?.id ?: return
+            val firstEventId = batch.first().id
             val retryCount = retryCountMap.getOrDefault(firstEventId, 0)
 
             if (retryCount < 3) {
@@ -145,8 +145,9 @@ class BatchWriter(
      */
     private fun writeToDeadLetterQueue(batch: List<AuditEvent>, error: Exception) {
         try {
-            val dlqFile = java.io.File("logs/dead-letter-queue.jsonl")
-            dlqFile.parentFile?.mkdirs()
+            val dlqDir = java.io.File("logs")
+            dlqDir.mkdirs()
+            val dlqFile = java.io.File(dlqDir, "dead-letter-queue.jsonl")
             dlqFile.appendText(
                 "# Error: ${error.message}\n" +
                     batch.joinToString("\n") { event ->
