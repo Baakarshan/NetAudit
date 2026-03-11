@@ -1,9 +1,38 @@
 #!/bin/sh
 set -e
 
-HOST_PORT=$1
-shift
+HOST_PORT=""
 TIMEOUT=30
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --timeout=*)
+      TIMEOUT="${1#*=}"
+      shift
+      ;;
+    --timeout)
+      TIMEOUT="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      if [ -z "$HOST_PORT" ]; then
+        HOST_PORT="$1"
+        shift
+      else
+        break
+      fi
+      ;;
+  esac
+done
+
+if [ -z "$HOST_PORT" ]; then
+  echo "Usage: wait-for-it host:port [--timeout=N] -- command" >&2
+  exit 1
+fi
 
 HOST=$(echo "$HOST_PORT" | cut -d: -f1)
 PORT=$(echo "$HOST_PORT" | cut -d: -f2)

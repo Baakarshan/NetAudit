@@ -3,7 +3,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # 安装 libpcap
-RUN apk add --no-cache libpcap libpcap-dev netcat-openbsd
+RUN apk add --no-cache libpcap libpcap-dev netcat-openbsd curl
 
 COPY backend/build/libs/*-all.jar app.jar
 COPY scripts/wait-for-it.sh /wait-for-it.sh
