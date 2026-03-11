@@ -4,7 +4,9 @@ import org.jetbrains.exposed.dao.id.UUIDTable
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 /**
- * 网络数据包基础表
+ * 网络数据包基础表。
+ *
+ * 用于存储原始包级元信息，可作为历史结构的兼容保留。
  */
 object PacketsTable : UUIDTable("packets") {
     val timestamp = timestamp("timestamp")
@@ -19,7 +21,7 @@ object PacketsTable : UUIDTable("packets") {
 }
 
 /**
- * HTTP 会话表
+ * HTTP 会话表。
  */
 object HttpSessionsTable : UUIDTable("http_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -33,7 +35,7 @@ object HttpSessionsTable : UUIDTable("http_sessions") {
 }
 
 /**
- * FTP 会话表
+ * FTP 会话表。
  */
 object FtpSessionsTable : UUIDTable("ftp_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -45,7 +47,7 @@ object FtpSessionsTable : UUIDTable("ftp_sessions") {
 }
 
 /**
- * TELNET 会话表
+ * TELNET 会话表。
  */
 object TelnetSessionsTable : UUIDTable("telnet_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -55,7 +57,7 @@ object TelnetSessionsTable : UUIDTable("telnet_sessions") {
 }
 
 /**
- * DNS 查询表
+ * DNS 查询表。
  */
 object DnsQueriesTable : UUIDTable("dns_queries") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -66,7 +68,7 @@ object DnsQueriesTable : UUIDTable("dns_queries") {
 }
 
 /**
- * SMTP 会话表
+ * SMTP 会话表。
  */
 object SmtpSessionsTable : UUIDTable("smtp_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -78,7 +80,7 @@ object SmtpSessionsTable : UUIDTable("smtp_sessions") {
 }
 
 /**
- * POP3 会话表
+ * POP3 会话表。
  */
 object Pop3SessionsTable : UUIDTable("pop3_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -89,7 +91,7 @@ object Pop3SessionsTable : UUIDTable("pop3_sessions") {
 }
 
 /**
- * 所有表的列表，用于批量操作
+ * 所有表的列表，用于批量操作与测试。
  */
 val allTables = arrayOf(
     PacketsTable,

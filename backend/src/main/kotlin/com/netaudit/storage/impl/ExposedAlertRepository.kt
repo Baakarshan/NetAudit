@@ -15,6 +15,9 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 
+/**
+ * AlertRepository 的 Exposed 实现。
+ */
 class ExposedAlertRepository : AlertRepository {
     override suspend fun save(alert: AlertRecord) {
         // 测试用挂起开关，便于覆盖协程让出与取消路径

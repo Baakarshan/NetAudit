@@ -14,12 +14,20 @@ import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * 告警引擎。
+ *
+ * 监听审计事件流，按规则生成告警并写入存储，同时广播给前端。
+ */
 class AlertEngine(
     private val eventBus: AuditEventBus,
     private val alertRepository: AlertRepository,
     private val scope: CoroutineScope,
     private val rules: List<AlertRule> = DefaultAlertRules.all()
 ) {
+    /**
+     * 启动告警引擎，返回协程任务句柄。
+     */
     fun start(): Job {
         return scope.launch {
             logger.info { "AlertEngine started with ${rules.size} rules" }

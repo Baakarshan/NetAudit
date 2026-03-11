@@ -7,6 +7,11 @@ import com.netaudit.model.StreamContext
 import com.netaudit.parser.ProtocolParser
 import java.util.UUID
 
+/**
+ * SMTP 协议解析器。
+ *
+ * 通过会话状态跟踪邮件发送流程，并在 DATA 阶段产出审计事件。
+ */
 class SmtpParser : ProtocolParser {
     override val protocolType = ProtocolType.SMTP
     override val ports = setOf(25, 587)
@@ -29,6 +34,9 @@ class SmtpParser : ProtocolParser {
         }
     }
 
+    /**
+     * 处理客户端命令与数据输入。
+     */
     private fun handleClientData(
         context: StreamContext,
         session: SmtpSessionState,
@@ -68,6 +76,9 @@ class SmtpParser : ProtocolParser {
         return null
     }
 
+    /**
+     * 处理 DATA 模式内容，解析邮件头与附件信息。
+     */
     private fun handleDataMode(
         context: StreamContext,
         session: SmtpSessionState,
@@ -111,6 +122,9 @@ class SmtpParser : ProtocolParser {
         return event
     }
 
+    /**
+     * 处理服务端响应，识别进入 DATA 模式的时机。
+     */
     private fun handleServerResponse(session: SmtpSessionState, text: String): AuditEvent? {
         val lines = text.split("\r\n", "\n").filter { it.isNotBlank() }
         for (line in lines) {
@@ -124,6 +138,9 @@ class SmtpParser : ProtocolParser {
         return null
     }
 
+    /**
+     * 提取邮件地址，兼容带尖括号的格式。
+     */
     private fun extractAddress(raw: String): String {
         val match = Regex("<(.+?)>").find(raw)
         return match?.groupValues?.get(1)?.trim() ?: raw.trim()

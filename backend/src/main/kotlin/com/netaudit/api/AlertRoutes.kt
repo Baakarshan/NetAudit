@@ -7,6 +7,9 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 
+/**
+ * 告警 REST 路由。
+ */
 fun Route.alertRoutes(repository: AlertRepository) {
     route("/api/alerts") {
         get("/recent") {

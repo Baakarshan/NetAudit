@@ -16,6 +16,11 @@ import io.ktor.server.response.respond
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * 安装 Ktor 插件与通用中间件。
+ *
+ * 包含 JSON 序列化、CORS 以及统一异常处理。
+ */
 fun Application.configurePlugins() {
     install(ContentNegotiation) {
         json(AppJson)

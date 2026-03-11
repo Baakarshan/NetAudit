@@ -2,7 +2,11 @@ package com.netaudit.model
 
 import kotlinx.datetime.Instant
 
-/** L2-L4 解码后的结构化包元数据 */
+/**
+ * L2-L4 解码后的结构化包元数据。
+ *
+ * 该结构用于上层解析与流量统计的统一输入，避免直接依赖底层 pcap 数据结构。
+ */
 data class TcpFlags(
     val syn: Boolean,
     val ack: Boolean,
@@ -11,6 +15,22 @@ data class TcpFlags(
     val psh: Boolean
 )
 
+/**
+ * 单个网络包的元数据与载荷信息。
+ *
+ * @param timestamp 捕获时间（UTC）
+ * @param srcMac 源 MAC
+ * @param dstMac 目标 MAC
+ * @param srcIp 源 IP
+ * @param dstIp 目标 IP
+ * @param ipProtocol 传输层协议
+ * @param srcPort 源端口
+ * @param dstPort 目标端口
+ * @param tcpFlags TCP 标志位，UDP 时为 null
+ * @param seqNumber TCP 序列号，UDP 时为 null
+ * @param ackNumber TCP 确认号，UDP 时为 null
+ * @param payload L7 应用层载荷
+ */
 data class PacketMetadata(
     val timestamp: Instant,
     val srcMac: String,

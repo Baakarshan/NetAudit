@@ -6,6 +6,11 @@ import com.netaudit.model.StreamContext
 import com.netaudit.parser.ProtocolParser
 import java.util.UUID
 
+/**
+ * TLS 解析器。
+ *
+ * 仅解析 ClientHello，提取 SNI、ALPN 与版本信息。
+ */
 class TlsParser : ProtocolParser {
     override val protocolType: ProtocolType = ProtocolType.TLS
     override val ports: Set<Int> = setOf(443, 8443, 9443)
@@ -52,6 +57,9 @@ class TlsParser : ProtocolParser {
         }
     }
 
+    /**
+     * 合并跨包缓存，限制最大缓冲大小。
+     */
     private fun mergeBuffer(context: StreamContext, payload: ByteArray): ByteArray {
         val existing = context.sessionState[SESSION_KEY_BUFFER] as? ByteArray
         val combined = if (existing != null && existing.isNotEmpty()) {
@@ -68,6 +76,11 @@ class TlsParser : ProtocolParser {
         }
     }
 
+    /**
+     * 尝试解析 ClientHello。
+     *
+     * 解析失败或数据不足会返回不同状态，以便上层决定是否继续缓存。
+     */
     private fun parseClientHello(data: ByteArray): ParseResult {
         if (data.size < 6) return ParseResult(ParseStatus.NEED_MORE)
 
@@ -159,6 +172,9 @@ class TlsParser : ProtocolParser {
         )
     }
 
+    /**
+     * 解析 SNI 扩展中的服务器名称。
+     */
     private fun parseSni(data: ByteArray, start: Int, end: Int): String? {
         if (start + 2 > end) return null
         var index = start
@@ -180,6 +196,9 @@ class TlsParser : ProtocolParser {
         return null
     }
 
+    /**
+     * 解析 ALPN 扩展中的协议列表。
+     */
     private fun parseAlpn(data: ByteArray, start: Int, end: Int): List<String> {
         if (start + 2 > end) return emptyList()
         var index = start
@@ -200,6 +219,9 @@ class TlsParser : ProtocolParser {
         return protocols
     }
 
+    /**
+     * 解析 Supported Versions 扩展中的版本列表。
+     */
     private fun parseSupportedVersions(data: ByteArray, start: Int, end: Int): List<Int> {
         if (start + 1 > end) return emptyList()
         var index = start

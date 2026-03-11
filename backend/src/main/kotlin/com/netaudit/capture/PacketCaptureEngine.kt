@@ -18,14 +18,14 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * 包捕获引擎。
- * Template Method 模式：统一 open → loop → close 生命周期。
  *
- * 职责:
- * - 打开指定网卡的 Pcap4J PcapHandle，设置混杂模式
- * - 在专用协程中循环调用 handle.getNextPacket()
- * - 将原始 Packet 对象发送到 Channel<Packet>（背压缓冲）
- * - 支持 graceful shutdown（close() 方法 break 循环 + close handle）
- * - 支持离线模式：从 .pcap 文件读取（用于测试）
+ * 核心职责：
+ * - 在线抓包或离线回放，并将 `Packet` 推送到 `rawPacketChannel`。
+ * - 在高吞吐下保持稳定（使用 trySend 避免阻塞抓包线程）。
+ *
+ * 线程模型：
+ * - 抓包循环运行在独立协程中。
+ * - `stop()` 可安全中断循环并释放底层资源。
  */
 class PacketCaptureEngine(
     private val config: CaptureConfig,
@@ -44,8 +44,9 @@ class PacketCaptureEngine(
     internal var afterSendHook: ((Packet) -> Unit)? = null
 
     /**
-     * 启动在线抓包。在 scope 中启动协程。
-     * 协程内循环: handle.getNextPacket() → channel.send()
+     * 启动在线抓包。
+     *
+     * 注意：重复调用会被忽略（已有运行实例）。
      */
     override fun startLive() {
         if (running) {
@@ -75,7 +76,8 @@ class PacketCaptureEngine(
 
     /**
      * 从 pcap 文件读取（测试用）。
-     * 同样走 channel.send()，但读完文件后 close channel。
+     *
+     * 读完文件后会触发 `stop()`，并关闭通道。
      */
     override fun startOffline(pcapFilePath: String) {
         if (running) {
@@ -100,7 +102,9 @@ class PacketCaptureEngine(
     }
 
     /**
-     * 停止抓包，关闭 handle，关闭 channel。
+     * 停止抓包并释放资源。
+     *
+     * 若已停止，则无副作用。
      */
     override fun stop() {
         if (!running) {
@@ -167,19 +171,37 @@ class PacketCaptureEngine(
     }
 }
 
+/**
+ * 抓包数据源抽象。
+ *
+ * 便于在线/离线统一处理与测试替换。
+ */
 interface PacketSource {
+    /** 返回下一包，若无数据则返回 null。 */
     fun nextPacket(): Packet?
+
+    /** 释放底层资源。 */
     fun close()
 }
 
+/**
+ * 数据源工厂。
+ *
+ * 统一封装 Pcap4J 的创建流程与异常边界。
+ */
 interface PacketSourceFactory {
+    /** 创建在线抓包源。 */
     @Throws(PcapNativeException::class)
     fun openLive(config: CaptureConfig): PacketSource
 
+    /** 创建离线回放源。 */
     @Throws(PcapNativeException::class)
     fun openOffline(pcapFilePath: String): PacketSource
 }
 
+/**
+ * Pcap4J 实现的抓包数据源。
+ */
 internal class PcapPacketSource(private val handle: PcapHandle) : PacketSource {
     override fun nextPacket(): Packet? = handle.nextPacket
 
@@ -188,6 +210,9 @@ internal class PcapPacketSource(private val handle: PcapHandle) : PacketSource {
     }
 }
 
+/**
+ * 基于 Pcap4J 的数据源工厂。
+ */
 internal object PcapPacketSourceFactory : PacketSourceFactory {
     override fun openLive(config: CaptureConfig): PacketSource {
         val nif = resolveInterface(config.interfaceName)
@@ -200,6 +225,14 @@ internal object PcapPacketSourceFactory : PacketSourceFactory {
         return PcapPacketSource(handle)
     }
 
+    /**
+     * 根据接口名解析网卡。
+     *
+     * 支持：
+     * - 完整设备名（\\Device\\NPF_{GUID}）
+     * - 描述字符串（包含匹配）
+     * - 名称部分匹配
+     */
     private fun resolveInterface(interfaceName: String): PcapNetworkInterface {
         val normalized = normalizeInterfaceName(interfaceName)
         val direct = Pcaps.getDevByName(normalized)
@@ -236,6 +269,9 @@ internal object PcapPacketSourceFactory : PacketSourceFactory {
         )
     }
 
+    /**
+     * 规范化 Windows 设备名，避免转义与花括号重复导致匹配失败。
+     */
     private fun normalizeInterfaceName(value: String): String {
         return value.trim()
             .replace("\\\\Device\\\\NPF_", "\\Device\\NPF_")

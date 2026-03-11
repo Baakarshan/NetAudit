@@ -15,10 +15,13 @@ import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 将 Pcap4J 的 Packet 对象解码为 PacketMetadata。
- * 利用 Pcap4J 内置的协议解析能力，不手动拆字节。
+ * 将 Pcap4J 的 `Packet` 解码为统一 `PacketMetadata`。
  *
- * 返回 null 表示该包不是我们感兴趣的（非 IPv4、非 TCP/UDP、无 payload）。
+ * 设计目标：
+ * - 尽量复用 Pcap4J 的解析能力，避免手动拆字节带来的易错性。
+ * - 对异常报文做容错处理，保证主流程不被破坏。
+ *
+ * 返回 null 表示该包不参与上层解析（如非 IPv4 或 UDP 无 payload）。
  */
 class PacketDecoder : PacketDecoderLike {
     private val timestampMethodCache = ConcurrentHashMap<Class<*>, Method?>()
@@ -107,6 +110,11 @@ class PacketDecoder : PacketDecoderLike {
         return null  // 既不是 TCP 也不是 UDP
     }
 
+    /**
+     * 当 Pcap4J 未能直接给出 IPv4 视图时，尝试从以太负载解析 IPv4。
+     *
+     * 该分支用于处理部分封装异常或非标准报文，属于容错路径。
+     */
     private fun parseIpFromPayload(ethPacket: EthernetPacket): IpV4Packet? {
         if (ethPacket.header.type != EtherType.IPV4) {
             return null
@@ -121,6 +129,11 @@ class PacketDecoder : PacketDecoderLike {
         }
     }
 
+    /**
+     * 从以太帧原始字节中解析 IPv4（跳过 14 字节以太头）。
+     *
+     * 仅在确认为 IPv4 类型时尝试，避免误解析。
+     */
     private fun parseIpFromRaw(ethPacket: EthernetPacket): IpV4Packet? {
         if (ethPacket.header.type != EtherType.IPV4) {
             return null
@@ -138,6 +151,12 @@ class PacketDecoder : PacketDecoderLike {
         }
     }
 
+    /**
+     * 解析时间戳。
+     *
+     * 优先读取包自带时间戳（不同 Packet 实现可能提供不同类型），
+     * 若不存在则回退到当前时间，保证时间字段稳定可用。
+     */
     private fun resolveTimestamp(packet: Packet): Instant {
         // 通过反射读取可能存在的 getTimestamp()，避免强依赖具体 Packet 实现
         val method = timestampMethodCache.computeIfAbsent(packet.javaClass) { clazz ->

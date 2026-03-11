@@ -18,6 +18,11 @@ import kotlinx.serialization.encodeToString
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * SSE 路由。
+ *
+ * 以 text/event-stream 形式推送审计与告警事件。
+ */
 fun Route.sseRoutes(
     auditEvents: Flow<AuditEvent>,
     alertEvents: Flow<AlertRecord>,
@@ -40,6 +45,11 @@ fun Route.sseRoutes(
     }
 }
 
+/**
+ * 处理 SSE 会话。
+ *
+ * 将审计与告警流并行推送给前端，并在连接建立时发送注释行。
+ */
 internal suspend fun handleSseSession(
     auditEvents: Flow<AuditEvent>,
     alertEvents: Flow<AlertRecord>,

@@ -1,6 +1,12 @@
 package com.netaudit.parser.email
 
+/**
+ * 邮件头解析与附件提取工具。
+ */
 object EmailHeaderParser {
+    /**
+     * 邮件头字段聚合结果。
+     */
     data class EmailHeaders(
         val from: String? = null,
         val to: List<String> = emptyList(),
@@ -9,11 +15,19 @@ object EmailHeaderParser {
         val boundary: String? = null
     )
 
+    /**
+     * 解析到的附件信息。
+     */
     data class AttachmentInfo(
         val filename: String,
         val estimatedSize: Int
     )
 
+    /**
+     * 解析邮件头文本。
+     *
+     * 支持多行折叠字段，并提取常见字段与 boundary。
+     */
     fun parseHeaders(headerText: String): EmailHeaders {
         val headerMap = mutableMapOf<String, String>()
         var currentKey = ""
@@ -57,6 +71,9 @@ object EmailHeaderParser {
         )
     }
 
+    /**
+     * 基于 boundary 从邮件正文中提取附件信息。
+     */
     fun extractAttachments(body: String, boundary: String?): List<AttachmentInfo> {
         if (boundary == null) return emptyList()
 
@@ -73,12 +90,18 @@ object EmailHeaderParser {
         return attachments
     }
 
+    /**
+     * 从 Content-Type 中提取 boundary。
+     */
     private fun extractBoundary(contentType: String): String? {
         val match = Regex("boundary=\"?([^\"\\s;]+)\"?", RegexOption.IGNORE_CASE)
             .find(contentType)
         return match?.groupValues?.get(1)
     }
 
+    /**
+     * 从 MIME 片段中提取附件文件名。
+     */
     private fun extractFilename(part: String): String? {
         val filenameMatch = Regex("filename=\"?([^\"\\r\\n]+)\"?", RegexOption.IGNORE_CASE)
             .find(part)
@@ -89,6 +112,9 @@ object EmailHeaderParser {
         return nameMatch?.groupValues?.get(1)?.trim()
     }
 
+    /**
+     * 估算 base64 数据长度，用于推算附件大小。
+     */
     private fun estimateBase64DataSize(part: String): Int {
         val lines = part.split("\r\n", "\n")
         var inBody = false

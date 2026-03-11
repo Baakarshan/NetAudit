@@ -10,6 +10,11 @@ import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * FTP 协议解析器。
+ *
+ * 通过会话状态跟踪登录、目录与文件操作等信息。
+ */
 class FtpParser : ProtocolParser {
     override val protocolType = ProtocolType.FTP
     override val ports = setOf(21)
@@ -51,6 +56,9 @@ class FtpParser : ProtocolParser {
         return lastEvent
     }
 
+    /**
+     * 解析客户端命令行，并更新会话状态。
+     */
     private fun parseCommand(
         context: StreamContext,
         session: FtpSessionState,
@@ -108,6 +116,9 @@ class FtpParser : ProtocolParser {
         )
     }
 
+    /**
+     * 解析服务端响应，处理登录/目录等状态变更。
+     */
     private fun parseResponse(
         context: StreamContext,
         session: FtpSessionState,

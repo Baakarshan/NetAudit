@@ -7,6 +7,11 @@ import com.netaudit.model.StreamContext
 import com.netaudit.parser.ProtocolParser
 import java.util.UUID
 
+/**
+ * POP3 协议解析器。
+ *
+ * 通过会话状态跟踪 RETR 模式，解析邮件内容并产出审计事件。
+ */
 class Pop3Parser : ProtocolParser {
     override val protocolType = ProtocolType.POP3
     override val ports = setOf(110)
@@ -29,6 +34,9 @@ class Pop3Parser : ProtocolParser {
         }
     }
 
+    /**
+     * 处理客户端命令并生成基础事件。
+     */
     private fun handleCommand(
         context: StreamContext,
         session: Pop3SessionState,
@@ -99,6 +107,9 @@ class Pop3Parser : ProtocolParser {
         return null
     }
 
+    /**
+     * 处理服务端响应，补齐 RETR 内容解析。
+     */
     private fun handleResponse(
         context: StreamContext,
         session: Pop3SessionState,

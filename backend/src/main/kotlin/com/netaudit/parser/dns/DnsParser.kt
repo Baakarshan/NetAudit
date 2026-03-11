@@ -10,6 +10,11 @@ import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * DNS 协议解析器。
+ *
+ * 解析 UDP DNS 报文，抽取查询/响应、域名与解析结果。
+ */
 class DnsParser : ProtocolParser {
     override val protocolType = ProtocolType.DNS
     override val ports = setOf(53)
@@ -26,6 +31,11 @@ class DnsParser : ProtocolParser {
         }
     }
 
+    /**
+     * 解析 DNS 报文并生成事件。
+     *
+     * 仅提取常用字段（事务 ID、查询域名、A/AAAA 解析结果等）。
+     */
     private fun parseDnsPacket(context: StreamContext, data: ByteArray): AuditEvent.DnsEvent? {
         val buf = ByteBuffer.wrap(data)
 
@@ -107,6 +117,9 @@ class DnsParser : ProtocolParser {
         )
     }
 
+    /**
+     * 从 DNS 报文中读取域名（支持指针压缩）。
+     */
     private fun readDomainName(data: ByteArray, startPos: Int): String {
         val labels = mutableListOf<String>()
         var pos = startPos
@@ -133,6 +146,9 @@ class DnsParser : ProtocolParser {
         return labels.joinToString(".")
     }
 
+    /**
+     * 跳过域名区域（包含指针压缩场景）。
+     */
     private fun skipDomainName(buf: ByteBuffer) {
         while (buf.hasRemaining()) {
             val len = buf.get().toInt() and 0xFF
@@ -145,6 +161,9 @@ class DnsParser : ProtocolParser {
         }
     }
 
+    /**
+     * 将查询类型数字转换为可读字符串。
+     */
     private fun qtypeToString(qtype: Int): String = when (qtype) {
         1 -> "A"
         2 -> "NS"

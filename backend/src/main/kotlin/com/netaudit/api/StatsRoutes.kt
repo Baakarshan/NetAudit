@@ -10,12 +10,18 @@ import io.ktor.server.routing.route
 import kotlinx.serialization.Serializable
 
 @Serializable
+/**
+ * Dashboard 统计返回结构。
+ */
 data class DashboardStats(
     val totalEvents: Long,
     val protocolCounts: Map<String, Long>,
     val alertCounts: Map<String, Long>
 )
 
+/**
+ * 统计相关路由。
+ */
 fun Route.statsRoutes(
     auditRepository: AuditRepository,
     alertRepository: AlertRepository

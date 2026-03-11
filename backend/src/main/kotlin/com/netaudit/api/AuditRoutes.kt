@@ -10,6 +10,11 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import kotlinx.datetime.Instant
 
+/**
+ * 审计日志 REST 路由。
+ *
+ * 输入参数使用查询字符串，默认分页大小 50，最大 200。
+ */
 fun Route.auditRoutes(repository: AuditRepository) {
     route("/api/audit") {
         get("/logs") {

@@ -10,6 +10,11 @@ import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Telnet 协议解析器。
+ *
+ * 解析登录提示与用户输入命令，忽略 Telnet IAC 控制序列。
+ */
 class TelnetParser : ProtocolParser {
     override val protocolType = ProtocolType.TELNET
     override val ports = setOf(23)
@@ -36,6 +41,9 @@ class TelnetParser : ProtocolParser {
         }
     }
 
+    /**
+     * 处理客户端输入内容，提取命令行并生成事件。
+     */
     private fun handleClientData(context: StreamContext): AuditEvent? {
         val filtered = filterIac(context.payload)
         if (filtered.isEmpty()) return null
@@ -94,6 +102,9 @@ class TelnetParser : ProtocolParser {
         )
     }
 
+    /**
+     * 处理服务端输出内容，识别登录/密码提示。
+     */
     private fun handleServerData(context: StreamContext): AuditEvent? {
         val filtered = filterIac(context.payload)
         if (filtered.isEmpty()) return null
@@ -132,6 +143,9 @@ class TelnetParser : ProtocolParser {
         return null
     }
 
+    /**
+     * 过滤 Telnet IAC 控制序列，仅保留可见文本。
+     */
     private fun filterIac(data: ByteArray): ByteArray {
         val result = mutableListOf<Byte>()
         var i = 0

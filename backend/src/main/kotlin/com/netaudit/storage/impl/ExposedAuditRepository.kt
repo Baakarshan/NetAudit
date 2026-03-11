@@ -19,6 +19,10 @@ import org.jetbrains.exposed.sql.batchInsert
 
 /**
  * AuditRepository 的 Exposed 实现。
+ *
+ * 设计要点：
+ * - 通用字段拆列存储，协议特有字段写入 JSONB（`details`）。
+ * - 查询结果直接从 JSONB 反序列化为 `AuditEvent`。
  */
 class ExposedAuditRepository : AuditRepository {
     override suspend fun save(event: AuditEvent) {
@@ -114,6 +118,11 @@ class ExposedAuditRepository : AuditRepository {
             }
     }
 
+    /**
+     * 将事件映射为数据库行。
+     *
+     * 注意：details 列使用 JSONB 存储完整事件，方便协议字段扩展。
+     */
     private fun mapEventToRow(row: UpdateBuilder<*>, event: AuditEvent) {
         row[AuditLogsTable.eventId] = event.id
         row[AuditLogsTable.protocol] = event.protocol.name
@@ -126,6 +135,9 @@ class ExposedAuditRepository : AuditRepository {
         row[AuditLogsTable.details] = event
     }
 
+    /**
+     * 将数据库行还原为事件对象。
+     */
     private fun rowToEvent(row: ResultRow): AuditEvent {
         return row[AuditLogsTable.details]
     }

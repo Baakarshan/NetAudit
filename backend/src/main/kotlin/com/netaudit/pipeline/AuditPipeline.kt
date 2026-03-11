@@ -91,9 +91,15 @@ class AuditPipeline(
         }
     }
 
+    /**
+     * 停止捕获与管道处理。
+     */
     fun stop() {
         captureEngine.stop()
     }
 
+    /**
+     * 当前活跃 TCP 流数量。
+     */
     fun activeStreams(): Int = streamTracker.activeStreamCount()
 }

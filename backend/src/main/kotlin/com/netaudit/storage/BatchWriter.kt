@@ -19,7 +19,12 @@ import kotlin.coroutines.coroutineContext
 private val logger = KotlinLogging.logger {}
 
 /**
- * 批量写入器 — 双触发条件（数量 OR 时间间隔）。
+ * 批量写入器。
+ *
+ * 设计目标：
+ * - 降低数据库写入开销（批量写）。
+ * - 控制写入延迟（数量与时间双触发）。
+ * - 失败重试并提供死信落盘，避免事件静默丢失。
  */
 class BatchWriter(
     private val repository: AuditRepository,
@@ -34,6 +39,11 @@ class BatchWriter(
     private var collectJob: Job? = null
     private var flushJob: Job? = null
 
+    /**
+     * 启动写入器。
+     *
+     * 注意：重复调用会被忽略，避免多条消费者协程并行写入。
+     */
     fun start() {
         // 避免重复启动导致多条消费/flush 协程
         if (collectJob != null || flushJob != null) {
@@ -69,12 +79,20 @@ class BatchWriter(
         logger.info { "BatchWriter started (batchSize=$batchSize, flushInterval=${flushIntervalMs}ms)" }
     }
 
+    /**
+     * 优雅关闭：先刷盘，再停止协程。
+     */
     suspend fun shutdown() {
         flush()
         stop()
         logger.info { "BatchWriter shutdown complete" }
     }
 
+    /**
+     * 仅停止协程，不主动刷盘。
+     *
+     * 通常由 `shutdown()` 调用，测试场景也可单独使用。
+     */
     suspend fun stop() {
         val currentCollectJob = collectJob
         val currentFlushJob = flushJob
@@ -84,6 +102,11 @@ class BatchWriter(
         currentFlushJob?.cancelAndJoin()
     }
 
+    /**
+     * 将缓冲区事件批量写入数据库。
+     *
+     * 失败时进入有限重试，超过重试次数写入死信队列。
+     */
     private suspend fun flush() {
         val batch = mutex.withLock {
             if (buffer.isEmpty()) return
@@ -117,6 +140,9 @@ class BatchWriter(
         }
     }
 
+    /**
+     * 死信队列落盘，便于人工排查与补偿。
+     */
     private fun writeToDeadLetterQueue(batch: List<AuditEvent>, error: Exception) {
         try {
             val dlqFile = java.io.File("logs/dead-letter-queue.jsonl")

@@ -18,12 +18,15 @@ import kotlinx.coroutines.channels.ReceiveChannel
 private val logger = KotlinLogging.logger {}
 
 /**
- * 配置 WebSocket 路由
+ * 配置 WebSocket 路由。
  */
 fun Route.captureWebSocket(eventBus: AuditEventBus) {
     captureWebSocket(eventBus.auditEvents)
 }
 
+/**
+ * 内部可测试封装：允许注入事件流与编码器。
+ */
 internal fun Route.captureWebSocket(
     auditEvents: Flow<AuditEvent>,
     encode: (AuditEvent) -> String = { AppJson.encodeToString(it) }
@@ -40,6 +43,12 @@ internal fun Route.captureWebSocket(
     }
 }
 
+/**
+ * 处理单个 WebSocket 会话。
+ *
+ * - 后台协程持续推送事件流。
+ * - 前台循环处理入站心跳消息。
+ */
 internal suspend fun handleCaptureWebSocketSession(
     auditEvents: Flow<AuditEvent>,
     incoming: ReceiveChannel<Frame>,

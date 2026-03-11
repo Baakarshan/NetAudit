@@ -18,16 +18,14 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * TCP 流重组追踪器。
- * Flyweight 模式：以 canonical StreamKey 为键复用 TcpStreamBuffer。
  *
- * 职责:
- * 1. 维护活跃连接的 StreamBuffer Map
- * 2. 判断包方向（client→server vs server→client）
- * 3. 追加数据到对应 Buffer
- * 4. 构造 StreamContext 调用 ProtocolParser.parse()
- * 5. 如果 Parser 返回 AuditEvent → 发射到 EventBus
- * 6. 处理 FIN/RST → 清理 Buffer
- * 7. 定时清理超时连接
+ * 设计要点：
+ * - 使用 canonical `StreamKey` 合并双向流，避免同一连接重复建模。
+ * - 方向判断以 canonicalKey 作为“客户端→服务端”基准，保证方向一致性。
+ * - 解析异常只记录不抛出，确保主链路稳定。
+ *
+ * 线程安全：
+ * - 由单协程串行调用更安全，避免共享状态并发写入。
  */
 class TcpStreamTracker(
     private val registry: ParserRegistry,

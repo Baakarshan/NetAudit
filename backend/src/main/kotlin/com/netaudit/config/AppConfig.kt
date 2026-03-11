@@ -2,6 +2,11 @@ package com.netaudit.config
 
 import io.ktor.server.config.*
 
+/**
+ * 数据库连接配置。
+ *
+ * 约定：优先读取环境变量覆盖配置文件，适配本地与容器化运行场景。
+ */
 data class DatabaseConfig(
     val url: String,
     val driver: String,
@@ -10,6 +15,11 @@ data class DatabaseConfig(
     val maxPoolSize: Int
 )
 
+/**
+ * 抓包配置。
+ *
+ * interfaceName 在 Windows 通常是 Npcap 设备名（\\Device\\NPF_{GUID}）。
+ */
 data class CaptureConfig(
     val interfaceName: String,
     val promiscuous: Boolean,
@@ -18,12 +28,21 @@ data class CaptureConfig(
     val channelBufferSize: Int
 )
 
+/**
+ * 应用级配置聚合。
+ */
 data class AppConfig(
     val database: DatabaseConfig,
     val capture: CaptureConfig,
     val alertEnabled: Boolean
 )
 
+/**
+ * 从 HOCON 与环境变量加载配置。
+ *
+ * 优先级：环境变量 > application.conf。
+ * 这样可以在不改配置文件的情况下复用同一镜像或构建产物。
+ */
 fun loadConfig(config: ApplicationConfig, env: Map<String, String> = System.getenv()): AppConfig {
 
     val databaseUrl = env["DATABASE_URL"] ?: config.property("database.url").getString()

@@ -4,7 +4,13 @@ import com.netaudit.model.AlertLevel
 import com.netaudit.model.AlertRule
 import com.netaudit.model.AuditEvent
 
+/**
+ * 默认告警规则集合。
+ */
 object DefaultAlertRules {
+    /**
+     * 获取全部默认规则。
+     */
     fun all(): List<AlertRule> = listOf(
         telnetLoginDetection(),
         sensitiveUrlAccess(),

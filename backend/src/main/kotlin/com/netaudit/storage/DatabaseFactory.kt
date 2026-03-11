@@ -19,7 +19,11 @@ import org.jetbrains.exposed.sql.vendors.PostgreSQLDialect
 private val logger = KotlinLogging.logger {}
 
 /**
- * 数据库工厂类，负责初始化数据库连接池和表结构
+ * 数据库工厂。
+ *
+ * 职责：
+ * - 初始化连接池与 Exposed 连接。
+ * - 创建核心表与 JSONB 索引。
  */
 object DatabaseFactory {
     private lateinit var dataSource: HikariDataSource
@@ -27,7 +31,7 @@ object DatabaseFactory {
     internal var forceSuspend: Boolean = false
 
     /**
-     * 初始化数据库连接
+     * 初始化数据库连接池并建表。
      */
     fun init(config: DatabaseConfig) {
         logger.info { "Initializing database connection pool..." }
@@ -60,7 +64,7 @@ object DatabaseFactory {
     }
 
     /**
-     * 创建数据库表
+     * 创建数据库表与索引。
      */
     fun createTables() {
         transaction {
@@ -72,7 +76,7 @@ object DatabaseFactory {
     }
 
     /**
-     * 关闭数据库连接池
+     * 关闭数据库连接池。
      */
     fun close() {
         if (::dataSource.isInitialized) {
@@ -83,7 +87,9 @@ object DatabaseFactory {
     }
 
     /**
-     * 在数据库事务中执行操作
+     * 在数据库事务中执行操作。
+     *
+     * 统一走 IO 调度器，避免阻塞主线程。
      */
     suspend fun <T> dbQuery(block: suspend () -> T): T =
         newSuspendedTransaction(Dispatchers.IO) {
@@ -94,11 +100,19 @@ object DatabaseFactory {
             block()
         }
 
+    /**
+     * 在 PostgreSQL 下将 details 列升级为 JSONB 并创建 GIN 索引。
+     */
     private fun configureJsonbIfPostgres(tx: Transaction) {
         val isPostgres = TransactionManager.current().db.dialect is PostgreSQLDialect
         configureJsonbIfPostgres(isPostgres, tx::exec)
     }
 
+    /**
+     * 可测试的 JSONB 初始化入口。
+     *
+     * 测试可传入 stub 的 exec 以验证 SQL 语句。
+     */
     internal fun configureJsonbIfPostgres(isPostgres: Boolean, exec: (String) -> Unit) {
         if (!isPostgres) {
             logger.debug { "Skip JSONB setup: non-PostgreSQL dialect" }
