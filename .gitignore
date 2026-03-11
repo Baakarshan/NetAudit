@@ -38,6 +38,7 @@ components.d.ts
 # Logs
 logs/
 *.log
+*.err
 
 # OS
 .DS_Store
