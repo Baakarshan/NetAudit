@@ -347,7 +347,7 @@ docker compose up -d --no-deps --force-recreate test-client
 
 - 默认端口：前端 5173、后端 8080、数据库 5432（可在 `.env` 覆盖）。
 
-### 方式 B：本地开发（含真实实时抓包 / 操作A）
+### 方式 B：本地开发（含真实实时抓包 / 操作A / 双通道）
 
 本地依赖：
 - JDK 21
@@ -356,7 +356,7 @@ docker compose up -d --no-deps --force-recreate test-client
 - libpcap/Npcap
 - Node.js 20+
 
-适用：要抓**宿主机浏览器流量**，必须走本方式；Docker 方案只能抓容器内流量。
+适用：要抓**宿主机浏览器流量**，必须走本方式；还支持“真实流量 + 脚本流量”双通道。
 
 1. 启动数据库（可用 Docker）。
 
@@ -436,6 +436,24 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8081/api/audit/recent?limit=5"
 ```
 
 预期：出现 `protocol=TLS` 事件，字段包含 `serverName`/`alpn`/`clientVersion`。
+
+8. 生成“脚本流量”（宿主机 → Docker 测试服务）。
+
+前置：先启动 docker 测试服务，并暴露端口：
+
+```
+cd docker
+docker compose up -d --build test-nginx test-ftp test-telnet test-dns test-smtp test-pop3
+```
+
+然后在宿主机执行脚本（会打到本机 18080/2121/2323/1053/2525/2110）：
+
+```
+cd scripts
+./test-all-protocols-host.ps1
+```
+
+此脚本生成的流量与浏览器真实流量都会进入同一个后端与 Dashboard。
 
 ### 方式 C：离线回放（无需真实网络流量）
 
