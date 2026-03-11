@@ -66,6 +66,8 @@ services:
     build:
       context: ./test-servers/nginx
     container_name: netaudit-test-nginx
+    ports:
+      - "18080:80"
     networks:
       audit-net:
         ipv4_address: 172.28.0.20
@@ -79,6 +81,9 @@ services:
     build:
       context: ./test-servers/ftp
     container_name: netaudit-test-ftp
+    ports:
+      - "2121:21"
+      - "21100-21110:21100-21110"
     environment:
       FTP_USER: alice
       FTP_PASS: password123
@@ -90,6 +95,8 @@ services:
     build:
       context: ./test-servers/telnet
     container_name: netaudit-test-telnet
+    ports:
+      - "2323:23"
     networks:
       audit-net:
         ipv4_address: 172.28.0.12
@@ -98,6 +105,9 @@ services:
     build:
       context: ./test-servers/dns
     container_name: netaudit-test-dns
+    ports:
+      - "1053:53/udp"
+      - "1053:53/tcp"
     networks:
       audit-net:
         ipv4_address: 172.28.0.13
@@ -106,6 +116,8 @@ services:
     build:
       context: ./test-servers/smtp
     container_name: netaudit-test-smtp
+    ports:
+      - "2525:25"
     networks:
       audit-net:
         ipv4_address: 172.28.0.14
@@ -114,6 +126,8 @@ services:
     build:
       context: ./test-servers/pop3
     container_name: netaudit-test-pop3
+    ports:
+      - "2110:110"
     networks:
       audit-net:
         ipv4_address: 172.28.0.15
