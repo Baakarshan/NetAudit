@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import axios from 'axios'
 import type { AlertRecord, AuditEvent, DashboardStats } from '@/types/models'
-import { alertApi, auditApi, statsApi } from '@/api/client'
+import { getApiBaseUrls } from '@/api/client'
 
 export const useAuditStore = defineStore('audit', () => {
   const recentEvents = ref<AuditEvent[]>([])
@@ -83,14 +84,66 @@ export const useAuditStore = defineStore('audit', () => {
 
   async function loadInitialData() {
     try {
-      const [dashRes, eventsRes, alertsRes] = await Promise.all([
-        statsApi.getDashboard(),
-        auditApi.getRecent(50),
-        alertApi.getRecent(20)
-      ])
-      stats.value = dashRes.data
-      recentEvents.value = eventsRes.data
-      recentAlerts.value = alertsRes.data
+      const baseUrls = getApiBaseUrls()
+      const dashboards = await Promise.all(
+        baseUrls.map(baseUrl =>
+          axios
+            .get<DashboardStats>(`${baseUrl}/api/stats/dashboard`, { timeout: 10000 })
+            .catch(() => null)
+        )
+      )
+      const eventsList = await Promise.all(
+        baseUrls.map(baseUrl =>
+          axios
+            .get<AuditEvent[]>(`${baseUrl}/api/audit/recent`, {
+              params: { limit: 50 },
+              timeout: 10000
+            })
+            .catch(() => null)
+        )
+      )
+      const alertsList = await Promise.all(
+        baseUrls.map(baseUrl =>
+          axios
+            .get<AlertRecord[]>(`${baseUrl}/api/alerts/recent`, {
+              params: { limit: 20 },
+              timeout: 10000
+            })
+            .catch(() => null)
+        )
+      )
+
+      const mergedStats: DashboardStats = {
+        totalEvents: 0,
+        protocolCounts: {},
+        alertCounts: {}
+      }
+
+      dashboards.forEach(response => {
+        if (!response) return
+        const data = response.data
+        mergedStats.totalEvents += data.totalEvents
+        Object.entries(data.protocolCounts).forEach(([protocol, count]) => {
+          mergedStats.protocolCounts[protocol] = (mergedStats.protocolCounts[protocol] ?? 0) + count
+        })
+        Object.entries(data.alertCounts).forEach(([level, count]) => {
+          mergedStats.alertCounts[level] = (mergedStats.alertCounts[level] ?? 0) + count
+        })
+      })
+
+      const mergedEvents = eventsList
+        .filter(Boolean)
+        .flatMap(response => response?.data ?? [])
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+      const mergedAlerts = alertsList
+        .filter(Boolean)
+        .flatMap(response => response?.data ?? [])
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+      stats.value = mergedStats
+      recentEvents.value = mergedEvents
+      recentAlerts.value = mergedAlerts
       seedTimelineFromEvents(recentEvents.value)
       seedRealtimeWindow(recentEvents.value)
     } catch (err) {

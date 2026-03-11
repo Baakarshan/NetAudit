@@ -1,8 +1,18 @@
 import axios from 'axios'
 import type { AlertRecord, AuditEvent, DashboardStats } from '@/types/models'
 
+export const getApiBaseUrls = () => {
+  const raw = import.meta.env.VITE_API_BASES || import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+  const list = raw
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(item => item.replace(/\/$/, ''))
+  return Array.from(new Set(list))
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE || 'http://localhost:8080',
+  baseURL: getApiBaseUrls()[0],
   timeout: 10000
 })
 

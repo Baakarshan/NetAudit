@@ -1,46 +1,57 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { AlertRecord, AuditEvent } from '@/types/models'
+import { getApiBaseUrls } from '@/api/client'
 
 export function useSse(
   onAudit: (event: AuditEvent) => void,
   onAlert: (alert: AlertRecord) => void
 ) {
   const connected = ref(false)
-  let eventSource: EventSource | null = null
+  const sources: EventSource[] = []
+  const openSources = new Set<EventSource>()
 
   const connect = () => {
-    const baseUrl = (import.meta.env.VITE_API_BASE || 'http://localhost:8080').replace(/\/$/, '')
-    eventSource = new EventSource(`${baseUrl}/api/sse/events`)
+    const baseUrls = getApiBaseUrls()
+    baseUrls.forEach((baseUrl) => {
+      const source = new EventSource(`${baseUrl}/api/sse/events`)
+      sources.push(source)
 
-    eventSource.onopen = () => {
-      connected.value = true
-    }
+      source.onopen = () => {
+        openSources.add(source)
+        connected.value = openSources.size > 0
+      }
 
-    eventSource.addEventListener('audit', (e: MessageEvent) => {
-      try {
-        const event: AuditEvent = JSON.parse(e.data)
-        onAudit(event)
-      } catch (err) {
-        console.error('Failed to parse audit event', err)
+      source.addEventListener('audit', (e: MessageEvent) => {
+        try {
+          const event: AuditEvent = JSON.parse(e.data)
+          onAudit(event)
+        } catch (err) {
+          console.error('Failed to parse audit event', err)
+        }
+      })
+
+      source.addEventListener('alert', (e: MessageEvent) => {
+        try {
+          const alert: AlertRecord = JSON.parse(e.data)
+          onAlert(alert)
+        } catch (err) {
+          console.error('Failed to parse alert event', err)
+        }
+      })
+
+      source.onerror = () => {
+        if (source.readyState === EventSource.CLOSED) {
+          openSources.delete(source)
+          connected.value = openSources.size > 0
+        }
       }
     })
-
-    eventSource.addEventListener('alert', (e: MessageEvent) => {
-      try {
-        const alert: AlertRecord = JSON.parse(e.data)
-        onAlert(alert)
-      } catch (err) {
-        console.error('Failed to parse alert event', err)
-      }
-    })
-
-    eventSource.onerror = () => {
-      connected.value = false
-    }
   }
 
   const disconnect = () => {
-    eventSource?.close()
+    sources.forEach(source => source.close())
+    sources.length = 0
+    openSources.clear()
     connected.value = false
   }
 
