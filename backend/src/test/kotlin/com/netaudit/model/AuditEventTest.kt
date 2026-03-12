@@ -102,4 +102,73 @@ class AuditEventTest {
         val decoded = AppJson.decodeFromString<AuditEvent>(json)
         assertEquals(event, decoded)
     }
+
+    @Test
+    fun `test TelnetEvent serialization`() {
+        val event = AuditEvent.TelnetEvent(
+            id = "test-id-5",
+            timestamp = Instant.parse("2024-01-01T00:00:00Z"),
+            srcIp = "192.168.1.100",
+            dstIp = "192.168.1.1",
+            srcPort = 54325,
+            dstPort = 23,
+            username = "root",
+            commandLine = "whoami",
+            direction = Direction.CLIENT_TO_SERVER
+        )
+
+        val json = AppJson.encodeToString<AuditEvent>(event)
+        assertTrue(json.contains("\"protocol\":\"TELNET\""))
+
+        val decoded = AppJson.decodeFromString<AuditEvent>(json)
+        assertEquals(event, decoded)
+    }
+
+    @Test
+    fun `test Pop3Event serialization`() {
+        val event = AuditEvent.Pop3Event(
+            id = "test-id-6",
+            timestamp = Instant.parse("2024-01-01T00:00:00Z"),
+            srcIp = "192.168.1.100",
+            dstIp = "192.168.1.1",
+            srcPort = 54326,
+            dstPort = 110,
+            username = "alice",
+            command = "RETR",
+            from = "sender@example.com",
+            to = listOf("recipient@example.com"),
+            subject = "Test Email",
+            attachmentNames = listOf("file.txt"),
+            attachmentSizes = listOf(128),
+            mailSize = 256
+        )
+
+        val json = AppJson.encodeToString<AuditEvent>(event)
+        assertTrue(json.contains("\"protocol\":\"POP3\""))
+
+        val decoded = AppJson.decodeFromString<AuditEvent>(json)
+        assertEquals(event, decoded)
+    }
+
+    @Test
+    fun `test TlsEvent serialization`() {
+        val event = AuditEvent.TlsEvent(
+            id = "test-id-7",
+            timestamp = Instant.parse("2024-01-01T00:00:00Z"),
+            srcIp = "192.168.1.100",
+            dstIp = "192.168.1.1",
+            srcPort = 54327,
+            dstPort = 443,
+            serverName = "example.com",
+            alpn = listOf("h2"),
+            clientVersion = "TLS 1.2",
+            supportedVersions = listOf("TLS 1.3", "TLS 1.2")
+        )
+
+        val json = AppJson.encodeToString<AuditEvent>(event)
+        assertTrue(json.contains("\"protocol\":\"TLS\""))
+
+        val decoded = AppJson.decodeFromString<AuditEvent>(json)
+        assertEquals(event, decoded)
+    }
 }

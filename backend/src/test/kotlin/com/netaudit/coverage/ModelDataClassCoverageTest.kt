@@ -179,6 +179,32 @@ class ModelDataClassCoverageTest {
         assertEquals(listOf(20), pop3.component15())
         assertEquals(100, pop3.component16())
         assertEquals(pop3, pop3.copy())
+
+        val tls = AuditEvent.TlsEvent(
+            id = "tls-1",
+            timestamp = ts,
+            srcIp = "1.1.1.1",
+            dstIp = "2.2.2.2",
+            srcPort = 443,
+            dstPort = 1006,
+            serverName = "example.com",
+            alpn = listOf("h2"),
+            clientVersion = "TLS 1.3",
+            supportedVersions = listOf("TLS 1.3", "TLS 1.2")
+        )
+        assertEquals("tls-1", tls.component1())
+        assertEquals(ts, tls.component2())
+        assertEquals("1.1.1.1", tls.component3())
+        assertEquals("2.2.2.2", tls.component4())
+        assertEquals(443, tls.component5())
+        assertEquals(1006, tls.component6())
+        assertEquals(ProtocolType.TLS, tls.component7())
+        assertEquals(AlertLevel.INFO, tls.component8())
+        assertEquals("example.com", tls.component9())
+        assertEquals(listOf("h2"), tls.component10())
+        assertEquals("TLS 1.3", tls.component11())
+        assertEquals(listOf("TLS 1.3", "TLS 1.2"), tls.component12())
+        assertEquals(tls, tls.copy())
     }
 
     @Test

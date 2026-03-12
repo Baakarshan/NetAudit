@@ -121,4 +121,29 @@ class ExposedAlertRepositoryTest {
         assertEquals(1, repository.findRecent(10).size)
         DatabaseFactory.forceSuspend = true
     }
+
+    @Test
+    fun `forceSuspend disabled covers query paths`() = runTest {
+        DatabaseFactory.forceSuspend = false
+        try {
+            val alert1 = AlertRecord(
+                id = "alert-q1",
+                timestamp = Instant.parse("2024-01-01T00:00:00Z"),
+                level = AlertLevel.WARN,
+                ruleName = "rule-q1",
+                message = "message-q1",
+                auditEventId = "event-q1",
+                protocol = ProtocolType.HTTP
+            )
+            val alert2 = alert1.copy(id = "alert-q2", level = AlertLevel.CRITICAL)
+
+            repository.save(alert1)
+            repository.save(alert2)
+
+            assertEquals(2, repository.findRecent(10).size)
+            assertEquals(2, repository.countByLevel().size)
+        } finally {
+            DatabaseFactory.forceSuspend = true
+        }
+    }
 }

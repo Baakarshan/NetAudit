@@ -181,6 +181,33 @@ class ExposedAuditRepositoryTest {
         DatabaseFactory.forceSuspend = true
     }
 
+    @Test
+    fun `forceSuspend disabled covers query methods`() = runTest {
+        DatabaseFactory.forceSuspend = false
+        try {
+            val event1 = httpEvent("nosuspend-q1")
+            val event2 = dnsEvent("nosuspend-q2")
+            repository.save(event1)
+            repository.saveBatch(listOf(event2))
+
+            assertTrue(repository.findAll().isNotEmpty())
+            assertTrue(repository.findByProtocol(ProtocolType.HTTP).isNotEmpty())
+            assertTrue(repository.findBySourceIp(event1.srcIp).isNotEmpty())
+            assertTrue(
+                repository.findBetween(
+                    event1.timestamp - 1.seconds,
+                    event1.timestamp + 1.seconds
+                ).isNotEmpty()
+            )
+            assertTrue(repository.findRecent(2).isNotEmpty())
+            assertEquals(event1.id, repository.findByEventId(event1.id)?.id)
+            assertEquals(2L, repository.countAll())
+            assertTrue(repository.countByProtocol().isNotEmpty())
+        } finally {
+            DatabaseFactory.forceSuspend = true
+        }
+    }
+
     private fun httpEvent(
         id: String,
         srcIp: String = "192.168.1.100",

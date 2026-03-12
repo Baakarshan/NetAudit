@@ -3,6 +3,7 @@ package com.netaudit.model
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+
 class StreamModelsTest {
     @Test
     fun `test StreamKey reverse`() {
@@ -70,5 +71,40 @@ class StreamModelsTest {
 
         // 两次反转应该回到原始值
         assertEquals(original, doubleReversed)
+    }
+
+    @Test
+    fun `test StreamContext accessors and payload text`() {
+        val key = StreamKey("1.1.1.1", 1111, "2.2.2.2", 2222)
+        val payload = "hello".toByteArray()
+        val metadata = PacketMetadata(
+            timestamp = kotlinx.datetime.Instant.parse("2024-01-01T00:00:00Z"),
+            srcMac = "00:00:00:00:00:01",
+            dstMac = "00:00:00:00:00:02",
+            srcIp = "1.1.1.1",
+            dstIp = "2.2.2.2",
+            ipProtocol = TransportProtocol.TCP,
+            srcPort = 1111,
+            dstPort = 2222,
+            tcpFlags = TcpFlags(syn = false, ack = true, fin = false, rst = false, psh = false),
+            seqNumber = 1,
+            ackNumber = 1,
+            payload = payload
+        )
+
+        val context = StreamContext(
+            key = key,
+            metadata = metadata,
+            payload = payload,
+            direction = Direction.CLIENT_TO_SERVER
+        )
+
+        assertEquals("1.1.1.1", context.srcIp)
+        assertEquals("2.2.2.2", context.dstIp)
+        assertEquals(1111, context.srcPort)
+        assertEquals(2222, context.dstPort)
+        assertEquals(metadata.timestamp, context.timestamp)
+        assertEquals("hello", context.payloadAsText())
+        assertEquals(0, context.sessionState.size)
     }
 }
