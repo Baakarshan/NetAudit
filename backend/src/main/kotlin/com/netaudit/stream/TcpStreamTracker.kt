@@ -64,9 +64,14 @@ class TcpStreamTracker(
             TcpStreamBuffer(canonicalKey, nowProvider)
         }
 
-        // 判断方向：canonicalKey 作为“客户端 → 服务端”基准
-        val direction = if (key == canonicalKey)
-            Direction.CLIENT_TO_SERVER else Direction.SERVER_TO_CLIENT
+        // 判断方向：优先用已注册的服务端端口来推断，避免 canonical 误判
+        val dstIsServer = registry.findByPort(metadata.dstPort) != null
+        val srcIsServer = registry.findByPort(metadata.srcPort) != null
+        val direction = when {
+            dstIsServer && !srcIsServer -> Direction.CLIENT_TO_SERVER
+            srcIsServer && !dstIsServer -> Direction.SERVER_TO_CLIENT
+            else -> if (key == canonicalKey) Direction.CLIENT_TO_SERVER else Direction.SERVER_TO_CLIENT
+        }
 
         // 处理 FIN/RST → 清理
         val flags = metadata.tcpFlags

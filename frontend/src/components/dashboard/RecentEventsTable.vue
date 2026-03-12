@@ -32,7 +32,36 @@ import { PROTOCOL_COLORS } from '@/utils/protocolColors'
 
 const props = defineProps<{ events: AuditEvent[] }>()
 
-const rows = computed(() => props.events.slice(0, 20))
+const isDockerIp = (ip?: string) => (ip ? /^172\.28\./.test(ip) : false)
+const isScriptEvent = (event: AuditEvent) =>
+  isDockerIp(event.srcIp) || isDockerIp(event.dstIp)
+
+const sortByTimeDesc = (a: AuditEvent, b: AuditEvent) =>
+  new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+
+const rows = computed(() => {
+  const events = props.events ?? []
+  if (events.length <= 20) return events
+  const scriptEvents = events.filter(isScriptEvent).sort(sortByTimeDesc)
+  const realEvents = events.filter(event => !isScriptEvent(event)).sort(sortByTimeDesc)
+  if (scriptEvents.length === 0 || realEvents.length === 0) {
+    return events.slice(0, 20)
+  }
+
+  const mixed: AuditEvent[] = []
+  let i = 0
+  let j = 0
+  while (mixed.length < 20 && (i < scriptEvents.length || j < realEvents.length)) {
+    if (i < scriptEvents.length) {
+      mixed.push(scriptEvents[i++])
+    }
+    if (mixed.length >= 20) break
+    if (j < realEvents.length) {
+      mixed.push(realEvents[j++])
+    }
+  }
+  return mixed
+})
 
 const rowProtocol = (row: unknown) => (row as any)?.protocol ?? 'UNKNOWN'
 
