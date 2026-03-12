@@ -43,6 +43,8 @@ class TelnetParser : ProtocolParser {
 
     /**
      * 处理客户端输入内容，提取命令行并生成事件。
+     *
+     * @param context 解析上下文
      */
     private fun handleClientData(context: StreamContext): AuditEvent? {
         val filtered = filterIac(context.payload)
@@ -104,6 +106,8 @@ class TelnetParser : ProtocolParser {
 
     /**
      * 处理服务端输出内容，识别登录/密码提示。
+     *
+     * @param context 解析上下文
      */
     private fun handleServerData(context: StreamContext): AuditEvent? {
         val filtered = filterIac(context.payload)
@@ -145,6 +149,9 @@ class TelnetParser : ProtocolParser {
 
     /**
      * 过滤 Telnet IAC 控制序列，仅保留可见文本。
+     *
+     * @param data 原始字节
+     * @return 过滤后的可见文本字节
      */
     private fun filterIac(data: ByteArray): ByteArray {
         val result = mutableListOf<Byte>()

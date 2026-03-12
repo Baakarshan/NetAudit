@@ -25,6 +25,12 @@ private val logger = KotlinLogging.logger {}
  * - 降低数据库写入开销（批量写）。
  * - 控制写入延迟（数量与时间双触发）。
  * - 失败重试并提供死信落盘，避免事件静默丢失。
+ *
+ * @param repository 审计事件仓储
+ * @param eventBus 审计事件总线
+ * @param scope 协程作用域
+ * @param batchSize 触发批量写入的阈值
+ * @param flushIntervalMs 定时刷盘间隔（毫秒）
  */
 class BatchWriter(
     private val repository: AuditRepository,
@@ -142,6 +148,9 @@ class BatchWriter(
 
     /**
      * 死信队列落盘，便于人工排查与补偿。
+     *
+     * @param batch 本次失败的事件批次
+     * @param error 失败原因
      */
     private fun writeToDeadLetterQueue(batch: List<AuditEvent>, error: Exception) {
         try {

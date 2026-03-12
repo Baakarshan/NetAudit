@@ -36,6 +36,10 @@ class Pop3Parser : ProtocolParser {
 
     /**
      * 处理客户端命令并生成基础事件。
+     *
+     * @param context 解析上下文
+     * @param session POP3 会话状态
+     * @param text 客户端命令文本
      */
     private fun handleCommand(
         context: StreamContext,
@@ -109,6 +113,10 @@ class Pop3Parser : ProtocolParser {
 
     /**
      * 处理服务端响应，补齐 RETR 内容解析。
+     *
+     * @param context 解析上下文
+     * @param session POP3 会话状态
+     * @param text 服务端响应文本
      */
     private fun handleResponse(
         context: StreamContext,

@@ -9,6 +9,8 @@ import io.ktor.server.routing.route
 
 /**
  * 告警 REST 路由。
+ *
+ * @param repository 告警仓储
  */
 fun Route.alertRoutes(repository: AlertRepository) {
     route("/api/alerts") {

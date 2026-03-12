@@ -6,6 +6,8 @@ import java.time.ZoneOffset
 
 /**
  * kotlinx.datetime.Instant → java.time.OffsetDateTime (UTC)
+ *
+ * @return UTC 时区的 OffsetDateTime
  */
 fun Instant.toJavaOffsetDateTime(): OffsetDateTime =
     OffsetDateTime.ofInstant(
@@ -15,6 +17,8 @@ fun Instant.toJavaOffsetDateTime(): OffsetDateTime =
 
 /**
  * java.time.OffsetDateTime → kotlinx.datetime.Instant
+ *
+ * @return Kotlin Instant（UTC）
  */
 fun OffsetDateTime.toKotlinxInstant(): Instant =
     Instant.fromEpochSeconds(toEpochSecond(), nano)

@@ -7,6 +7,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
  * 网络数据包基础表。
  *
  * 用于存储原始包级元信息，可作为历史结构的兼容保留。
+ * 当前主链路以 `audit_logs` 为主，旧表仅用于兼容或回溯分析。
  */
 object PacketsTable : UUIDTable("packets") {
     val timestamp = timestamp("timestamp")
@@ -22,6 +23,8 @@ object PacketsTable : UUIDTable("packets") {
 
 /**
  * HTTP 会话表。
+ *
+ * 兼容旧版结构，当前主链路不写入。
  */
 object HttpSessionsTable : UUIDTable("http_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -36,6 +39,8 @@ object HttpSessionsTable : UUIDTable("http_sessions") {
 
 /**
  * FTP 会话表。
+ *
+ * 兼容旧版结构，当前主链路不写入。
  */
 object FtpSessionsTable : UUIDTable("ftp_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -48,6 +53,8 @@ object FtpSessionsTable : UUIDTable("ftp_sessions") {
 
 /**
  * TELNET 会话表。
+ *
+ * 兼容旧版结构，当前主链路不写入。
  */
 object TelnetSessionsTable : UUIDTable("telnet_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -58,6 +65,8 @@ object TelnetSessionsTable : UUIDTable("telnet_sessions") {
 
 /**
  * DNS 查询表。
+ *
+ * 兼容旧版结构，当前主链路不写入。
  */
 object DnsQueriesTable : UUIDTable("dns_queries") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -69,6 +78,8 @@ object DnsQueriesTable : UUIDTable("dns_queries") {
 
 /**
  * SMTP 会话表。
+ *
+ * 兼容旧版结构，当前主链路不写入。
  */
 object SmtpSessionsTable : UUIDTable("smtp_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -81,6 +92,8 @@ object SmtpSessionsTable : UUIDTable("smtp_sessions") {
 
 /**
  * POP3 会话表。
+ *
+ * 兼容旧版结构，当前主链路不写入。
  */
 object Pop3SessionsTable : UUIDTable("pop3_sessions") {
     val packetId = uuid("packet_id").references(PacketsTable.id)
@@ -92,6 +105,8 @@ object Pop3SessionsTable : UUIDTable("pop3_sessions") {
 
 /**
  * 所有表的列表，用于批量操作与测试。
+ *
+ * 仅包含旧结构表，避免与新表混淆。
  */
 val allTables = arrayOf(
     PacketsTable,

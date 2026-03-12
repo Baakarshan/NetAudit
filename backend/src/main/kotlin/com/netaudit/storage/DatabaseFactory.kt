@@ -32,6 +32,8 @@ object DatabaseFactory {
 
     /**
      * 初始化数据库连接池并建表。
+     *
+     * @param config 数据库连接配置
      */
     fun init(config: DatabaseConfig) {
         logger.info { "Initializing database connection pool..." }
@@ -90,6 +92,9 @@ object DatabaseFactory {
      * 在数据库事务中执行操作。
      *
      * 统一走 IO 调度器，避免阻塞主线程。
+     *
+     * @param block 事务内执行的挂起代码块
+     * @return block 执行结果
      */
     suspend fun <T> dbQuery(block: suspend () -> T): T =
         newSuspendedTransaction(Dispatchers.IO) {
@@ -102,6 +107,8 @@ object DatabaseFactory {
 
     /**
      * 在 PostgreSQL 下将 details 列升级为 JSONB 并创建 GIN 索引。
+     *
+     * @param tx 当前事务
      */
     private fun configureJsonbIfPostgres(tx: Transaction) {
         val isPostgres = TransactionManager.current().db.dialect is PostgreSQLDialect
@@ -112,6 +119,9 @@ object DatabaseFactory {
      * 可测试的 JSONB 初始化入口。
      *
      * 测试可传入 stub 的 exec 以验证 SQL 语句。
+     *
+     * @param isPostgres 是否为 PostgreSQL 方言
+     * @param exec 执行 SQL 的函数
      */
     internal fun configureJsonbIfPostgres(isPostgres: Boolean, exec: (String) -> Unit) {
         if (!isPostgres) {

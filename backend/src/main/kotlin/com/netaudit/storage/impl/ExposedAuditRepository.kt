@@ -25,6 +25,11 @@ import org.jetbrains.exposed.sql.batchInsert
  * - 查询结果直接从 JSONB 反序列化为 `AuditEvent`。
  */
 class ExposedAuditRepository : AuditRepository {
+    /**
+     * 保存单条事件到数据库。
+     *
+     * @param event 审计事件
+     */
     override suspend fun save(event: AuditEvent) {
         // 测试场景触发一次挂起，确保协程路径覆盖
         if (DatabaseFactory.forceSuspend) {
@@ -38,6 +43,11 @@ class ExposedAuditRepository : AuditRepository {
         }
     }
 
+    /**
+     * 批量保存事件。
+     *
+     * @param events 事件列表；为空时直接返回
+     */
     override suspend fun saveBatch(events: List<AuditEvent>) {
         // 测试场景触发一次挂起，确保协程路径覆盖
         if (DatabaseFactory.forceSuspend) {
@@ -51,6 +61,12 @@ class ExposedAuditRepository : AuditRepository {
         }
     }
 
+    /**
+     * 查询全部事件（分页）。
+     *
+     * @param page 页码（从 0 开始）
+     * @param size 每页数量
+     */
     override suspend fun findAll(page: Int, size: Int): List<AuditEvent> = DatabaseFactory.dbQuery {
         AuditLogsTable.selectAll()
             .orderBy(AuditLogsTable.capturedAt, SortOrder.DESC)
@@ -58,6 +74,13 @@ class ExposedAuditRepository : AuditRepository {
             .map { rowToEvent(it) }
     }
 
+    /**
+     * 按协议查询事件（分页）。
+     *
+     * @param protocol 协议类型
+     * @param page 页码（从 0 开始）
+     * @param size 每页数量
+     */
     override suspend fun findByProtocol(protocol: ProtocolType, page: Int, size: Int): List<AuditEvent> =
         DatabaseFactory.dbQuery {
             AuditLogsTable.selectAll()
@@ -67,6 +90,13 @@ class ExposedAuditRepository : AuditRepository {
                 .map { rowToEvent(it) }
         }
 
+    /**
+     * 按源 IP 查询事件（分页）。
+     *
+     * @param srcIp 源 IP
+     * @param page 页码（从 0 开始）
+     * @param size 每页数量
+     */
     override suspend fun findBySourceIp(srcIp: String, page: Int, size: Int): List<AuditEvent> =
         DatabaseFactory.dbQuery {
             AuditLogsTable.selectAll()
@@ -76,6 +106,14 @@ class ExposedAuditRepository : AuditRepository {
                 .map { rowToEvent(it) }
         }
 
+    /**
+     * 按时间区间查询事件（分页）。
+     *
+     * @param start 起始时间（包含）
+     * @param end 结束时间（包含）
+     * @param page 页码（从 0 开始）
+     * @param size 每页数量
+     */
     override suspend fun findBetween(start: Instant, end: Instant, page: Int, size: Int): List<AuditEvent> =
         DatabaseFactory.dbQuery {
             AuditLogsTable.selectAll()
@@ -90,6 +128,11 @@ class ExposedAuditRepository : AuditRepository {
                 .map { rowToEvent(it) }
         }
 
+    /**
+     * 查询最近 N 条事件。
+     *
+     * @param limit 返回条数上限
+     */
     override suspend fun findRecent(limit: Int): List<AuditEvent> = DatabaseFactory.dbQuery {
         AuditLogsTable.selectAll()
             .orderBy(AuditLogsTable.capturedAt, SortOrder.DESC)
@@ -97,6 +140,12 @@ class ExposedAuditRepository : AuditRepository {
             .map { rowToEvent(it) }
     }
 
+    /**
+     * 根据事件 ID 精确查询。
+     *
+     * @param eventId 事件 ID
+     * @return 匹配的事件；不存在则返回 null
+     */
     override suspend fun findByEventId(eventId: String): AuditEvent? = DatabaseFactory.dbQuery {
         AuditLogsTable.selectAll()
             .where { AuditLogsTable.eventId eq eventId }
@@ -105,10 +154,20 @@ class ExposedAuditRepository : AuditRepository {
             .firstOrNull()
     }
 
+    /**
+     * 统计事件总数。
+     *
+     * @return 总事件数
+     */
     override suspend fun countAll(): Long = DatabaseFactory.dbQuery {
         AuditLogsTable.selectAll().count()
     }
 
+    /**
+     * 按协议统计事件数量。
+     *
+     * @return 协议到数量的映射
+     */
     override suspend fun countByProtocol(): Map<ProtocolType, Long> = DatabaseFactory.dbQuery {
         AuditLogsTable
             .select(AuditLogsTable.protocol, AuditLogsTable.id.count())
@@ -122,6 +181,9 @@ class ExposedAuditRepository : AuditRepository {
      * 将事件映射为数据库行。
      *
      * 注意：details 列使用 JSONB 存储完整事件，方便协议字段扩展。
+     *
+     * @param row Exposed 的更新/插入上下文
+     * @param event 审计事件
      */
     private fun mapEventToRow(row: UpdateBuilder<*>, event: AuditEvent) {
         row[AuditLogsTable.eventId] = event.id
@@ -137,6 +199,9 @@ class ExposedAuditRepository : AuditRepository {
 
     /**
      * 将数据库行还原为事件对象。
+     *
+     * @param row 数据库查询结果行
+     * @return 还原后的审计事件
      */
     private fun rowToEvent(row: ResultRow): AuditEvent {
         return row[AuditLogsTable.details]

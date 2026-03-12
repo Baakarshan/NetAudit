@@ -36,6 +36,10 @@ class SmtpParser : ProtocolParser {
 
     /**
      * 处理客户端命令与数据输入。
+     *
+     * @param context 解析上下文
+     * @param session SMTP 会话状态
+     * @param text 客户端命令文本
      */
     private fun handleClientData(
         context: StreamContext,
@@ -78,6 +82,10 @@ class SmtpParser : ProtocolParser {
 
     /**
      * 处理 DATA 模式内容，解析邮件头与附件信息。
+     *
+     * @param context 解析上下文
+     * @param session SMTP 会话状态
+     * @param text DATA 模式下的正文片段
      */
     private fun handleDataMode(
         context: StreamContext,
@@ -124,6 +132,9 @@ class SmtpParser : ProtocolParser {
 
     /**
      * 处理服务端响应，识别进入 DATA 模式的时机。
+     *
+     * @param session SMTP 会话状态
+     * @param text 服务端响应文本
      */
     private fun handleServerResponse(session: SmtpSessionState, text: String): AuditEvent? {
         val lines = text.split("\r\n", "\n").filter { it.isNotBlank() }
@@ -140,6 +151,9 @@ class SmtpParser : ProtocolParser {
 
     /**
      * 提取邮件地址，兼容带尖括号的格式。
+     *
+     * @param raw 原始地址字段
+     * @return 清洗后的邮箱地址
      */
     private fun extractAddress(raw: String): String {
         val match = Regex("<(.+?)>").find(raw)

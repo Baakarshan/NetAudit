@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  * 设计目标：
  * - 尽量复用 Pcap4J 的解析能力，避免手动拆字节带来的易错性。
  * - 对异常报文做容错处理，保证主流程不被破坏。
+ * - 对时间戳进行统一抽象，兼容不同 Packet 实现。
  *
  * 返回 null 表示该包不参与上层解析（如非 IPv4 或 UDP 无 payload）。
  */
@@ -28,7 +29,7 @@ class PacketDecoder : PacketDecoderLike {
 
     /**
      * 主解码方法。
-     * 解码流程:
+     * 解码流程：
      * 1. 检查是否包含 EthernetPacket → 提取 srcMac, dstMac
      * 2. 检查是否包含 IpV4Packet → 提取 srcIp, dstIp, protocol
      * 3. 根据 protocol:
@@ -36,6 +37,9 @@ class PacketDecoder : PacketDecoderLike {
      *    - UDP → 提取 UdpPacket 的 srcPort, dstPort, payload
      * 4. 如果 payload 为空 → 对于 UDP 返回 null，对于 TCP 仍然返回（需要感知连接生命周期）
      * 5. 组装 PacketMetadata 返回
+     *
+     * @param packet Pcap4J 捕获到的原始包
+     * @return 解码后的元数据；若包不可解析或不参与上层处理则返回 null
      */
     override fun decode(packet: Packet): PacketMetadata? {
         // L2 - Ethernet
@@ -114,6 +118,8 @@ class PacketDecoder : PacketDecoderLike {
      * 当 Pcap4J 未能直接给出 IPv4 视图时，尝试从以太负载解析 IPv4。
      *
      * 该分支用于处理部分封装异常或非标准报文，属于容错路径。
+     *
+     * @return 解析到的 IPv4 包；失败则返回 null
      */
     private fun parseIpFromPayload(ethPacket: EthernetPacket): IpV4Packet? {
         if (ethPacket.header.type != EtherType.IPV4) {
@@ -133,6 +139,8 @@ class PacketDecoder : PacketDecoderLike {
      * 从以太帧原始字节中解析 IPv4（跳过 14 字节以太头）。
      *
      * 仅在确认为 IPv4 类型时尝试，避免误解析。
+     *
+     * @return 解析到的 IPv4 包；失败则返回 null
      */
     private fun parseIpFromRaw(ethPacket: EthernetPacket): IpV4Packet? {
         if (ethPacket.header.type != EtherType.IPV4) {
@@ -156,6 +164,8 @@ class PacketDecoder : PacketDecoderLike {
      *
      * 优先读取包自带时间戳（不同 Packet 实现可能提供不同类型），
      * 若不存在则回退到当前时间，保证时间字段稳定可用。
+     *
+     * @return 捕获时间（UTC）
      */
     private fun resolveTimestamp(packet: Packet): Instant {
         // 通过反射读取可能存在的 getTimestamp()，避免强依赖具体 Packet 实现

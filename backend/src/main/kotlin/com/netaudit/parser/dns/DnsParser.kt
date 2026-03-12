@@ -35,6 +35,10 @@ class DnsParser : ProtocolParser {
      * 解析 DNS 报文并生成事件。
      *
      * 仅提取常用字段（事务 ID、查询域名、A/AAAA 解析结果等）。
+     *
+     * @param context 解析上下文
+     * @param data DNS 报文原始字节
+     * @return DNS 审计事件；解析失败返回 null
      */
     private fun parseDnsPacket(context: StreamContext, data: ByteArray): AuditEvent.DnsEvent? {
         val buf = ByteBuffer.wrap(data)
@@ -119,6 +123,10 @@ class DnsParser : ProtocolParser {
 
     /**
      * 从 DNS 报文中读取域名（支持指针压缩）。
+     *
+     * @param data 报文原始字节
+     * @param startPos 起始偏移
+     * @return 解析得到的域名
      */
     private fun readDomainName(data: ByteArray, startPos: Int): String {
         val labels = mutableListOf<String>()
@@ -148,6 +156,8 @@ class DnsParser : ProtocolParser {
 
     /**
      * 跳过域名区域（包含指针压缩场景）。
+     *
+     * @param buf DNS 报文的 ByteBuffer 视图
      */
     private fun skipDomainName(buf: ByteBuffer) {
         while (buf.hasRemaining()) {
@@ -163,6 +173,9 @@ class DnsParser : ProtocolParser {
 
     /**
      * 将查询类型数字转换为可读字符串。
+     *
+     * @param qtype DNS 类型编号
+     * @return 可读的类型名称
      */
     private fun qtypeToString(qtype: Int): String = when (qtype) {
         1 -> "A"

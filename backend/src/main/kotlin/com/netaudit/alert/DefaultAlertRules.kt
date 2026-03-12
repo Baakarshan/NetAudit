@@ -10,6 +10,8 @@ import com.netaudit.model.AuditEvent
 object DefaultAlertRules {
     /**
      * 获取全部默认规则。
+     *
+     * @return 默认规则列表
      */
     fun all(): List<AlertRule> = listOf(
         telnetLoginDetection(),
@@ -24,6 +26,7 @@ object DefaultAlertRules {
         description = "TELNET session detected - potential security risk",
         level = AlertLevel.CRITICAL,
         condition = { event ->
+            // Telnet 登录通常意味着明文口令传输
             event is AuditEvent.TelnetEvent && event.username != null
         }
     )
@@ -60,6 +63,7 @@ object DefaultAlertRules {
         }
     )
 
+    /** 可疑路径关键词集合。 */
     private val SENSITIVE_PATHS = listOf(
         "/admin", "/config", "/secret", "/passwd",
         "/env", "/.git", "/backup", "/debug"

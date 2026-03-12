@@ -19,6 +19,8 @@ private val logger = KotlinLogging.logger {}
 
 /**
  * 配置 WebSocket 路由。
+ *
+ * @param eventBus 审计事件总线
  */
 fun Route.captureWebSocket(eventBus: AuditEventBus) {
     captureWebSocket(eventBus.auditEvents)
@@ -26,6 +28,9 @@ fun Route.captureWebSocket(eventBus: AuditEventBus) {
 
 /**
  * 内部可测试封装：允许注入事件流与编码器。
+ *
+ * @param auditEvents 审计事件流
+ * @param encode 事件编码函数
  */
 internal fun Route.captureWebSocket(
     auditEvents: Flow<AuditEvent>,
@@ -48,6 +53,12 @@ internal fun Route.captureWebSocket(
  *
  * - 后台协程持续推送事件流。
  * - 前台循环处理入站心跳消息。
+ *
+ * @param auditEvents 审计事件流
+ * @param incoming 客户端入站帧通道
+ * @param sendFrame 发送帧回调
+ * @param encode 事件编码函数
+ * @param scope 会话协程作用域
  */
 internal suspend fun handleCaptureWebSocketSession(
     auditEvents: Flow<AuditEvent>,

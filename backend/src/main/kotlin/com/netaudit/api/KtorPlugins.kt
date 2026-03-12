@@ -20,6 +20,7 @@ private val logger = KotlinLogging.logger {}
  * 安装 Ktor 插件与通用中间件。
  *
  * 包含 JSON 序列化、CORS 以及统一异常处理。
+ * 注意：CORS 当前允许任意来源，生产环境可按需收敛。
  */
 fun Application.configurePlugins() {
     install(ContentNegotiation) {

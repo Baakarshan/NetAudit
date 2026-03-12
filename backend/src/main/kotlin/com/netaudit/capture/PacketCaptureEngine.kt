@@ -26,6 +26,11 @@ private val logger = KotlinLogging.logger {}
  * 线程模型：
  * - 抓包循环运行在独立协程中。
  * - `stop()` 可安全中断循环并释放底层资源。
+ *
+ * @param config 抓包配置
+ * @param scope 协程作用域
+ * @param sourceFactory 数据源工厂（测试可注入）
+ * @param ioDispatcher 抓包协程调度器
  */
 class PacketCaptureEngine(
     private val config: CaptureConfig,
@@ -47,6 +52,8 @@ class PacketCaptureEngine(
      * 启动在线抓包。
      *
      * 注意：重复调用会被忽略（已有运行实例）。
+     *
+     * @throws PcapNativeException 当网卡不可用或权限不足
      */
     override fun startLive() {
         if (running) {
@@ -78,6 +85,9 @@ class PacketCaptureEngine(
      * 从 pcap 文件读取（测试用）。
      *
      * 读完文件后会触发 `stop()`，并关闭通道。
+     *
+     * @param pcapFilePath pcap 文件路径
+     * @throws PcapNativeException 当文件不可读或格式不合法
      */
     override fun startOffline(pcapFilePath: String) {
         if (running) {
@@ -120,6 +130,11 @@ class PacketCaptureEngine(
         }
     }
 
+    /**
+     * 抓包主循环。
+     *
+     * 内部会处理超时、离线 EOF、背压丢包统计以及异常兜底。
+     */
     private fun captureLoop() {
         val currentSource = source ?: return
 

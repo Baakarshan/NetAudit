@@ -58,6 +58,10 @@ class FtpParser : ProtocolParser {
 
     /**
      * 解析客户端命令行，并更新会话状态。
+     *
+     * @param context 解析上下文
+     * @param session FTP 会话状态
+     * @param line 单行命令文本
      */
     private fun parseCommand(
         context: StreamContext,
@@ -118,6 +122,10 @@ class FtpParser : ProtocolParser {
 
     /**
      * 解析服务端响应，处理登录/目录等状态变更。
+     *
+     * @param context 解析上下文
+     * @param session FTP 会话状态
+     * @param line 单行响应文本
      */
     private fun parseResponse(
         context: StreamContext,

@@ -25,6 +25,15 @@ private val logger = KotlinLogging.logger {}
  * 启动后在 scope 中运行两个协程:
  * 1. 捕获协程 (CaptureEngine 内部)
  * 2. 解码+分发协程 (本类管理)
+ *
+ * @param config 抓包配置
+ * @param registry 协议解析器注册表
+ * @param eventBus 事件总线
+ * @param scope 协程作用域
+ * @param captureEngine 抓包引擎（可替换）
+ * @param decoder 解码器（可替换）
+ * @param streamTracker 流追踪器（可替换）
+ * @param dispatcher 解码分发协程调度器
  */
 class AuditPipeline(
     private val config: CaptureConfig,
@@ -69,6 +78,8 @@ class AuditPipeline(
 
     /**
      * 启动管道（离线模式，用于测试）。
+     *
+     * @param pcapFilePath pcap 文件路径
      */
     fun startOffline(pcapFilePath: String) {
         logger.info { "Starting audit pipeline in offline mode: $pcapFilePath" }
@@ -100,6 +111,8 @@ class AuditPipeline(
 
     /**
      * 当前活跃 TCP 流数量。
+     *
+     * @return 活跃流数量
      */
     fun activeStreams(): Int = streamTracker.activeStreamCount()
 }

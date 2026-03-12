@@ -28,12 +28,20 @@ class AuditEventBus {
     /** 告警事件只读流。 */
     val alertEvents: SharedFlow<AlertRecord> = _alertEvents.asSharedFlow()
 
-    /** 推送审计事件。 */
+    /**
+     * 推送审计事件。
+     *
+     * @param event 审计事件
+     */
     suspend fun emitAudit(event: AuditEvent) {
         _auditEvents.emit(event)
     }
 
-    /** 推送告警事件。 */
+    /**
+     * 推送告警事件。
+     *
+     * @param alert 告警记录
+     */
     suspend fun emitAlert(alert: AlertRecord) {
         _alertEvents.emit(alert)
     }

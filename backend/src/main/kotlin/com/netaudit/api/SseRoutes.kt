@@ -22,6 +22,11 @@ private val logger = KotlinLogging.logger {}
  * SSE 路由。
  *
  * 以 text/event-stream 形式推送审计与告警事件。
+ *
+ * @param auditEvents 审计事件流
+ * @param alertEvents 告警事件流
+ * @param auditEncoder 审计事件编码函数
+ * @param alertEncoder 告警事件编码函数
  */
 fun Route.sseRoutes(
     auditEvents: Flow<AuditEvent>,
@@ -49,6 +54,13 @@ fun Route.sseRoutes(
  * 处理 SSE 会话。
  *
  * 将审计与告警流并行推送给前端，并在连接建立时发送注释行。
+ *
+ * @param auditEvents 审计事件流
+ * @param alertEvents 告警事件流
+ * @param auditEncoder 审计事件编码函数
+ * @param alertEncoder 告警事件编码函数
+ * @param writeLine 行写入回调
+ * @param flush 刷新回调
  */
 internal suspend fun handleSseSession(
     auditEvents: Flow<AuditEvent>,

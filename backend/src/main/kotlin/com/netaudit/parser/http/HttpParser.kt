@@ -37,6 +37,9 @@ class HttpParser : ProtocolParser {
 
     /**
      * 解析 HTTP 请求并写入会话状态，便于后续响应关联。
+     *
+     * @param context 解析上下文
+     * @param text 请求文本
      */
     private fun parseRequest(context: StreamContext, text: String): AuditEvent.HttpEvent? {
         val lines = text.split("\r\n")
@@ -83,6 +86,9 @@ class HttpParser : ProtocolParser {
      * 解析 HTTP 响应。
      *
      * 通过 [StreamContext.sessionState] 读取最近一次请求信息，将响应关联到请求。
+     *
+     * @param context 解析上下文
+     * @param text 响应文本
      */
     private fun parseResponse(context: StreamContext, text: String): AuditEvent.HttpEvent? {
         val lines = text.split("\r\n")
@@ -128,6 +134,9 @@ class HttpParser : ProtocolParser {
 
     /**
      * 解析请求/响应头部为 key-value 映射，key 统一转为小写。
+     *
+     * @param lines 头部行列表
+     * @return 头部映射
      */
     private fun parseHeaders(lines: List<String>): Map<String, String> {
         val headers = mutableMapOf<String, String>()

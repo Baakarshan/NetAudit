@@ -42,6 +42,9 @@ data class AppConfig(
  *
  * 优先级：环境变量 > application.conf。
  * 这样可以在不改配置文件的情况下复用同一镜像或构建产物。
+ *
+ * @param config Ktor ApplicationConfig
+ * @param env 环境变量映射（测试可注入）
  */
 fun loadConfig(config: ApplicationConfig, env: Map<String, String> = System.getenv()): AppConfig {
 

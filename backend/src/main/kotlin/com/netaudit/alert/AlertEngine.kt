@@ -18,6 +18,11 @@ private val logger = KotlinLogging.logger {}
  * 告警引擎。
  *
  * 监听审计事件流，按规则生成告警并写入存储，同时广播给前端。
+ *
+ * @param eventBus 审计事件总线
+ * @param alertRepository 告警仓储
+ * @param scope 协程作用域
+ * @param rules 告警规则列表
  */
 class AlertEngine(
     private val eventBus: AuditEventBus,
@@ -27,6 +32,8 @@ class AlertEngine(
 ) {
     /**
      * 启动告警引擎，返回协程任务句柄。
+     *
+     * @return 处理协程的 Job
      */
     fun start(): Job {
         return scope.launch {

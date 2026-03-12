@@ -8,10 +8,15 @@ import kotlinx.datetime.Instant
  * 该结构用于上层解析与流量统计的统一输入，避免直接依赖底层 pcap 数据结构。
  */
 data class TcpFlags(
+    /** SYN 标志位 */
     val syn: Boolean,
+    /** ACK 标志位 */
     val ack: Boolean,
+    /** FIN 标志位 */
     val fin: Boolean,
+    /** RST 标志位 */
     val rst: Boolean,
+    /** PSH 标志位 */
     val psh: Boolean
 )
 

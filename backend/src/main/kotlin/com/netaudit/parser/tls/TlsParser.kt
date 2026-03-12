@@ -27,20 +27,20 @@ class TlsParser : ProtocolParser {
         if (combined.isEmpty()) return null
 
         val result = parseClientHello(combined)
-        return when (result.status) {
-            ParseStatus.NEED_MORE -> {
+        return when (result) {
+            ParseResult.NeedMore -> {
                 context.sessionState[SESSION_KEY_BUFFER] = combined
                 null
             }
-            ParseStatus.NOT_TLS -> {
+            ParseResult.NotTls -> {
                 context.sessionState.remove(SESSION_KEY_BUFFER)
                 null
             }
-            ParseStatus.FOUND -> {
+            is ParseResult.Found -> {
                 context.sessionState.remove(SESSION_KEY_BUFFER)
                 context.sessionState[SESSION_KEY_SEEN] = true
 
-                val info = result.info ?: return null
+                val info = result.info
                 AuditEvent.TlsEvent(
                     id = generateId(),
                     timestamp = context.timestamp,
@@ -59,6 +59,10 @@ class TlsParser : ProtocolParser {
 
     /**
      * 合并跨包缓存，限制最大缓冲大小。
+     *
+     * @param context 解析上下文（用于读取/写入会话缓存）
+     * @param payload 当前包载荷
+     * @return 合并后的缓冲；超限则返回空数组
      */
     private fun mergeBuffer(context: StreamContext, payload: ByteArray): ByteArray {
         val existing = context.sessionState[SESSION_KEY_BUFFER] as? ByteArray
@@ -80,54 +84,57 @@ class TlsParser : ProtocolParser {
      * 尝试解析 ClientHello。
      *
      * 解析失败或数据不足会返回不同状态，以便上层决定是否继续缓存。
+     *
+     * @param data 合并后的 TLS 记录数据
+     * @return 解析结果状态
      */
     private fun parseClientHello(data: ByteArray): ParseResult {
-        if (data.size < 6) return ParseResult(ParseStatus.NEED_MORE)
+        if (data.size < 6) return ParseResult.NeedMore
 
         val contentType = readU8(data, 0)
-        if (contentType != TLS_HANDSHAKE) return ParseResult(ParseStatus.NOT_TLS)
+        if (contentType != TLS_HANDSHAKE) return ParseResult.NotTls
 
         val recordVersion = readU16(data, 1)
-        if (!isTlsRecordVersion(recordVersion)) return ParseResult(ParseStatus.NOT_TLS)
+        if (!isTlsRecordVersion(recordVersion)) return ParseResult.NotTls
 
         val recordLength = readU16(data, 3)
         val recordEnd = 5 + recordLength
-        if (data.size < recordEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (data.size < recordEnd) return ParseResult.NeedMore
 
-        if (data.size < 9) return ParseResult(ParseStatus.NEED_MORE)
+        if (data.size < 9) return ParseResult.NeedMore
         val handshakeType = readU8(data, 5)
-        if (handshakeType != HANDSHAKE_CLIENT_HELLO) return ParseResult(ParseStatus.NOT_TLS)
+        if (handshakeType != HANDSHAKE_CLIENT_HELLO) return ParseResult.NotTls
 
         val handshakeLength = readU24(data, 6)
         val handshakeStart = 9
         val handshakeEnd = handshakeStart + handshakeLength
-        if (data.size < handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (data.size < handshakeEnd) return ParseResult.NeedMore
 
         var index = handshakeStart
 
-        if (index + 2 > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + 2 > handshakeEnd) return ParseResult.NeedMore
         val clientVersion = readU16(data, index)
         index += 2
 
-        if (index + RANDOM_LEN > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + RANDOM_LEN > handshakeEnd) return ParseResult.NeedMore
         index += RANDOM_LEN
 
-        if (index + 1 > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + 1 > handshakeEnd) return ParseResult.NeedMore
         val sessionIdLength = readU8(data, index)
         index += 1
-        if (index + sessionIdLength > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + sessionIdLength > handshakeEnd) return ParseResult.NeedMore
         index += sessionIdLength
 
-        if (index + 2 > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + 2 > handshakeEnd) return ParseResult.NeedMore
         val cipherSuitesLength = readU16(data, index)
         index += 2
-        if (index + cipherSuitesLength > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + cipherSuitesLength > handshakeEnd) return ParseResult.NeedMore
         index += cipherSuitesLength
 
-        if (index + 1 > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + 1 > handshakeEnd) return ParseResult.NeedMore
         val compressionMethodsLength = readU8(data, index)
         index += 1
-        if (index + compressionMethodsLength > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + compressionMethodsLength > handshakeEnd) return ParseResult.NeedMore
         index += compressionMethodsLength
 
         val alpn = mutableListOf<String>()
@@ -135,17 +142,16 @@ class TlsParser : ProtocolParser {
         var serverName: String? = null
 
         if (index == handshakeEnd) {
-            return ParseResult(
-                ParseStatus.FOUND,
+            return ParseResult.Found(
                 ClientHelloInfo(clientVersion, serverName, alpn, supportedVersions)
             )
         }
 
-        if (index + 2 > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (index + 2 > handshakeEnd) return ParseResult.NeedMore
         val extensionsLength = readU16(data, index)
         index += 2
         val extensionsEnd = index + extensionsLength
-        if (extensionsEnd > handshakeEnd) return ParseResult(ParseStatus.NEED_MORE)
+        if (extensionsEnd > handshakeEnd) return ParseResult.NeedMore
 
         while (index + 4 <= extensionsEnd) {
             val extType = readU16(data, index)
@@ -166,14 +172,18 @@ class TlsParser : ProtocolParser {
             index = extEnd
         }
 
-        return ParseResult(
-            ParseStatus.FOUND,
+        return ParseResult.Found(
             ClientHelloInfo(clientVersion, serverName, alpn, supportedVersions)
         )
     }
 
     /**
      * 解析 SNI 扩展中的服务器名称。
+     *
+     * @param data TLS 记录数据
+     * @param start 扩展起始位置
+     * @param end 扩展结束位置（不包含）
+     * @return 服务器名称；未找到返回 null
      */
     private fun parseSni(data: ByteArray, start: Int, end: Int): String? {
         if (start + 2 > end) return null
@@ -198,6 +208,11 @@ class TlsParser : ProtocolParser {
 
     /**
      * 解析 ALPN 扩展中的协议列表。
+     *
+     * @param data TLS 记录数据
+     * @param start 扩展起始位置
+     * @param end 扩展结束位置（不包含）
+     * @return 协议列表
      */
     private fun parseAlpn(data: ByteArray, start: Int, end: Int): List<String> {
         if (start + 2 > end) return emptyList()
@@ -221,6 +236,11 @@ class TlsParser : ProtocolParser {
 
     /**
      * 解析 Supported Versions 扩展中的版本列表。
+     *
+     * @param data TLS 记录数据
+     * @param start 扩展起始位置
+     * @param end 扩展结束位置（不包含）
+     * @return 版本号列表
      */
     private fun parseSupportedVersions(data: ByteArray, start: Int, end: Int): List<Int> {
         if (start + 1 > end) return emptyList()
@@ -271,15 +291,12 @@ class TlsParser : ProtocolParser {
         val supportedVersions: List<Int>
     )
 
-    private data class ParseResult(
-        val status: ParseStatus,
-        val info: ClientHelloInfo? = null
-    )
+    private sealed interface ParseResult {
+        data class Found(val info: ClientHelloInfo) : ParseResult
 
-    private enum class ParseStatus {
-        FOUND,
-        NEED_MORE,
-        NOT_TLS
+        data object NeedMore : ParseResult
+
+        data object NotTls : ParseResult
     }
 
     private companion object {

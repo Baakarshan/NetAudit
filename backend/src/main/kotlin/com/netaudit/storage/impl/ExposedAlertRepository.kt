@@ -19,6 +19,11 @@ import org.jetbrains.exposed.sql.selectAll
  * AlertRepository 的 Exposed 实现。
  */
 class ExposedAlertRepository : AlertRepository {
+    /**
+     * 保存告警记录。
+     *
+     * @param alert 告警记录
+     */
     override suspend fun save(alert: AlertRecord) {
         // 测试用挂起开关，便于覆盖协程让出与取消路径
         if (DatabaseFactory.forceSuspend) {
@@ -38,6 +43,12 @@ class ExposedAlertRepository : AlertRepository {
         }
     }
 
+    /**
+     * 查询最近 N 条告警。
+     *
+     * @param limit 返回条数上限
+     * @return 告警记录列表（时间倒序）
+     */
     override suspend fun findRecent(limit: Int): List<AlertRecord> = DatabaseFactory.dbQuery {
         AlertsTable.selectAll()
             .orderBy(AlertsTable.timestamp, SortOrder.DESC)
@@ -55,6 +66,11 @@ class ExposedAlertRepository : AlertRepository {
             }
     }
 
+    /**
+     * 按告警等级统计数量。
+     *
+     * @return 告警等级到数量的映射
+     */
     override suspend fun countByLevel(): Map<AlertLevel, Long> = DatabaseFactory.dbQuery {
         AlertsTable.select(AlertsTable.level, AlertsTable.id.count())
             .groupBy(AlertsTable.level)

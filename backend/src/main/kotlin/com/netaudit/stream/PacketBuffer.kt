@@ -6,6 +6,8 @@ import org.pcap4j.packet.Packet
  * 原始包缓冲区，保存最近 N 条数据。
  *
  * 线程安全：使用 `synchronized` 保护队列，适合低开销读写场景。
+ *
+ * @param capacity 最大缓存条数，超出后丢弃最旧数据
  */
 class PacketBuffer(
     private val capacity: Int = 1000
@@ -15,6 +17,8 @@ class PacketBuffer(
 
     /**
      * 追加新包，超出容量则丢弃最旧数据。
+     *
+     * @param packet 原始网络包
      */
     suspend fun add(packet: Packet) {
         synchronized(lock) {

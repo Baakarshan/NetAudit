@@ -9,10 +9,14 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import kotlinx.serialization.Serializable
 
-@Serializable
 /**
  * Dashboard 统计返回结构。
+ *
+ * @param totalEvents 总事件数
+ * @param protocolCounts 协议维度统计（key 为协议名称）
+ * @param alertCounts 告警等级统计（key 为等级名称）
  */
+@Serializable
 data class DashboardStats(
     val totalEvents: Long,
     val protocolCounts: Map<String, Long>,
@@ -21,6 +25,9 @@ data class DashboardStats(
 
 /**
  * 统计相关路由。
+ *
+ * @param auditRepository 审计事件仓储
+ * @param alertRepository 告警仓储
  */
 fun Route.statsRoutes(
     auditRepository: AuditRepository,

@@ -2,26 +2,30 @@ package com.netaudit.model
 
 import kotlinx.serialization.Serializable
 
-@Serializable
 /**
  * 应用层协议类型枚举。
+ *
+ * 用于审计事件分类与前端统计展示。
  */
+@Serializable
 enum class ProtocolType {
     HTTP, FTP, TELNET, DNS, SMTP, POP3, TLS
 }
 
-@Serializable
 /**
  * 告警级别枚举。
+ *
+ * 用于告警规则匹配与 UI 呈现。
  */
+@Serializable
 enum class AlertLevel {
     INFO, WARN, CRITICAL
 }
 
-@Serializable
 /**
  * 传输层协议枚举。
  */
+@Serializable
 enum class TransportProtocol {
     TCP, UDP;
 
@@ -35,10 +39,12 @@ enum class TransportProtocol {
     }
 }
 
-@Serializable
 /**
  * 流量方向枚举。
+ *
+ * 用于区分“客户端→服务端”与“服务端→客户端”的上下文。
  */
+@Serializable
 enum class Direction {
     CLIENT_TO_SERVER,
     SERVER_TO_CLIENT

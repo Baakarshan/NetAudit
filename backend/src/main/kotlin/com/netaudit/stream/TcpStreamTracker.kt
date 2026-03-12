@@ -26,6 +26,13 @@ private val logger = KotlinLogging.logger {}
  *
  * 线程安全：
  * - 由单协程串行调用更安全，避免共享状态并发写入。
+ *
+ * @param registry 协议解析器注册表
+ * @param eventBus 审计事件总线
+ * @param scope 协程作用域（用于清理任务）
+ * @param streamTimeoutSeconds 流超时阈值（秒）
+ * @param cleanupIntervalMs 清理间隔（毫秒）
+ * @param nowProvider 时间源（测试可注入）
  */
 class TcpStreamTracker(
     private val registry: ParserRegistry,

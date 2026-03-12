@@ -32,6 +32,12 @@ data class StreamKey(
  * 传递给 ProtocolParser 的上下文对象。
  *
  * 包含包的元信息、应用层 payload、方向以及会话级状态容器。
+ *
+ * @param key 流连接标识（canonical 后用于双向合流）
+ * @param metadata 解码后的包元数据
+ * @param payload 原始应用层负载
+ * @param direction 流量方向
+ * @param sessionState 会话级状态容器（跨包共享）
  */
 class StreamContext(
     val key: StreamKey,

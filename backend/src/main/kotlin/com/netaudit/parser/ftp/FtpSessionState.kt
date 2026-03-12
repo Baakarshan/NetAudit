@@ -4,6 +4,12 @@ package com.netaudit.parser.ftp
  * FTP 会话状态。
  *
  * 用于跨多条命令记录登录态、当前目录及待处理的命令。
+ *
+ * @param phase 会话阶段
+ * @param username 登录用户名
+ * @param currentDirectory 当前目录
+ * @param pendingCommand 等待响应的命令
+ * @param pendingArgument 命令参数
  */
 data class FtpSessionState(
     var phase: FtpPhase = FtpPhase.IDLE,

@@ -14,6 +14,8 @@ import kotlinx.datetime.Instant
  * 审计日志 REST 路由。
  *
  * 输入参数使用查询字符串，默认分页大小 50，最大 200。
+ *
+ * @param repository 审计事件仓储
  */
 fun Route.auditRoutes(repository: AuditRepository) {
     route("/api/audit") {

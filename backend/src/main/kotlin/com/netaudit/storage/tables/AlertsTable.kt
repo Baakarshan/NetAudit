@@ -9,13 +9,13 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestampWithTimeZone
  */
 object AlertsTable : Table("alerts") {
     val id = long("id").autoIncrement()
-    val alertId = varchar("alert_id", 36).uniqueIndex()
-    val timestamp = timestampWithTimeZone("timestamp").index()
-    val level = varchar("level", 10).index()
-    val ruleName = varchar("rule_name", 100)
-    val message = text("message")
-    val auditEventId = varchar("audit_event_id", 36)
-    val protocol = varchar("protocol", 10)
+    val alertId = varchar("alert_id", 36).uniqueIndex() // 告警 UUID
+    val timestamp = timestampWithTimeZone("timestamp").index() // 触发时间
+    val level = varchar("level", 10).index() // 告警级别
+    val ruleName = varchar("rule_name", 100) // 规则名称
+    val message = text("message") // 告警详情
+    val auditEventId = varchar("audit_event_id", 36) // 关联的审计事件 ID
+    val protocol = varchar("protocol", 10) // 关联协议类型
     val createdAt = timestampWithTimeZone("created_at")
         .defaultExpression(CurrentTimestampWithTimeZone)
 

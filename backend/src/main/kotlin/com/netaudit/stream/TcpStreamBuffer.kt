@@ -8,11 +8,15 @@ import kotlinx.datetime.Instant
  * 单个 TCP 连接的数据缓冲区。
  *
  * 用途：
- * - 为 TCP 会话提供双向缓冲（客户端/服务端）。
- * - 维护协议解析所需的跨包状态。
+ * - 为 TCP 会话提供双向缓冲（客户端/服务端）；
+ * - 维护协议解析所需的跨包状态（sessionState）。
  *
  * 线程安全：
  * - 本类不保证并发安全，默认由 `TcpStreamTracker` 单协程串行调用。
+ *
+ * @param key 连接的 canonical key（用于双向合流）
+ * @param nowProvider 时间源（测试可注入）
+ * @param createdAt 缓冲区创建时间
  */
 class TcpStreamBuffer(
     val key: StreamKey,
@@ -48,16 +52,26 @@ class TcpStreamBuffer(
         lastActivityAt = nowProvider()
     }
 
-    /** 获取客户端→服务端方向的缓冲内容（不清除）。 */
+    /**
+     * 获取客户端→服务端方向的缓冲内容（不清除）。
+     *
+     * @return 当前缓冲字符串
+     */
     fun clientData(): String = clientToServerBuf.toString()
 
-    /** 获取服务端→客户端方向的缓冲内容（不清除）。 */
+    /**
+     * 获取服务端→客户端方向的缓冲内容（不清除）。
+     *
+     * @return 当前缓冲字符串
+     */
     fun serverData(): String = serverToClientBuf.toString()
 
     /**
      * 消费客户端缓冲（取出并清除）。
      *
      * 适用于解析器按行或分隔符读取完整消息的场景。
+     *
+     * @return 消费到的字符串
      */
     fun consumeClientData(): String {
         val data = clientToServerBuf.toString()
@@ -67,6 +81,8 @@ class TcpStreamBuffer(
 
     /**
      * 消费服务端缓冲（取出并清除）。
+     *
+     * @return 消费到的字符串
      */
     fun consumeServerData(): String {
         val data = serverToClientBuf.toString()

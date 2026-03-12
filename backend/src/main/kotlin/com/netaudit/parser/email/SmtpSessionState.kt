@@ -4,6 +4,15 @@ package com.netaudit.parser.email
  * SMTP 会话状态。
  *
  * 用于跨多条 SMTP 命令维护邮件收发的上下文信息。
+ *
+ * @param phase 当前会话阶段
+ * @param from 发件人地址
+ * @param to 收件人列表
+ * @param subject 邮件主题
+ * @param dataBuffer DATA 模式缓存
+ * @param inDataMode 是否处于 DATA 模式
+ * @param attachmentNames 附件名称列表
+ * @param attachmentSizes 附件大小列表
  */
 data class SmtpSessionState(
     var phase: SmtpPhase = SmtpPhase.CONNECTED,
