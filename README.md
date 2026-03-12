@@ -2,7 +2,6 @@
 
 基于 Kotlin 协程的实时网络审计系统。通过抓包、协议解析与事件总线，将网络流量转化为统一的审计事件与告警，并提供 REST/SSE/WebSocket 的实时访问能力与可视化面板。
 
-本项目定位：
 - **真实流量可观测**：支持宿主机网卡抓包，能看到浏览器/系统真实网络行为。
 - **可重复演示**：提供 Docker 全协议测试服务与脚本，一键生成可验证流量。
 - **统一事件模型**：跨协议字段对齐，前端展示与查询无需了解底层方向差异。
@@ -171,7 +170,7 @@ net-audit/
 - PostgreSQL 下 `details` 强制转换为 JSONB 并创建 GIN 索引。
 - H2 测试库仍可运行，但 `details` 以文本存储。
 
-## 设计取舍与模式落点（功能/原因/实现/收益）
+## 设计取舍
 
 1. `PacketCaptureEngine`（模板方法）
 - 功能：统一在线/离线抓包生命周期。
@@ -296,7 +295,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-若拉取镜像受限，可使用已构建镜像启动：
+若拉取镜像受限，先确保镜像已可用，再启动：
 
 ```
 docker compose up -d --no-build
@@ -315,13 +314,19 @@ http://localhost:5173
 http://localhost:8080/health
 ```
 
-5. 生成全协议测试流量。
+5. 确保 `test-client` 已运行（用于 `docker exec`）。
+
+```
+docker compose up -d test-client
+```
+
+6. 生成全协议测试流量。
 
 ```
 docker exec netaudit-test-client bash /scripts/test-all-protocols.sh
 ```
 
-6. 验证统计变化。
+7. 验证统计变化。
 
 ```
 curl http://localhost:8080/api/stats/dashboard
@@ -329,7 +334,7 @@ curl http://localhost:8080/api/stats/dashboard
 
 看到 `totalEvents` 增长即表示链路通。
 
-7. 关闭与清理。
+8. 关闭与清理。
 
 ```
 docker compose down -v
@@ -338,6 +343,7 @@ docker compose down -v
 说明：
 - `test-client` 使用 `network_mode: service:backend`，确保后端能抓到它产生的流量。
 - 端口映射已包含：HTTP(18080)、FTP(2121)、TELNET(2323)、DNS(1053)、SMTP(2525)、POP3(2110)。
+- 若构建失败，优先检查 Docker 访问镜像仓库的网络与代理配置。
 
 ### 方式 B：本地开发（真实流量）
 
@@ -350,7 +356,7 @@ cd docker
 docker compose up -d postgres
 ```
 
-2. 配置抓包网卡。
+2. 配置抓包网卡（Windows 建议管理员权限运行 PowerShell）。
 
 Windows：
 
@@ -390,11 +396,11 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8081/api/stats/dashboard"
 curl.exe -s -N --max-time 3 http://127.0.0.1:8081/api/sse/events
 ```
 
-### 方式 C：双通道合并（真实流量 + 脚本流量）
+### 方式 C：宿主机单后端（真实流量 + 宿主机脚本流量）
 
-适用场景：既看真实浏览器流量，又看 Docker 测试脚本流量。
+适用场景：仅使用宿主机后端抓包，同时看到真实流量与宿主机脚本流量。
 
-1. 启动 Docker 测试服务（不启动后端也可，端口映射已暴露）。
+1. 启动 Docker 测试服务（只提供协议服务端口）。
 
 ```
 cd docker
@@ -403,22 +409,57 @@ docker compose up -d --build test-nginx test-ftp test-telnet test-dns test-smtp 
 
 2. 启动本地后端（例：8081）并指向真实网卡。
 
-3. 前端聚合双后端：
+3. 前端指向该后端：
 
 ```
 cd frontend
-$env:VITE_API_BASES="http://127.0.0.1:8081,http://127.0.0.1:8080"
+$env:VITE_API_BASE="http://127.0.0.1:8081"
+$env:VITE_WS_URL="ws://127.0.0.1:8081"
 npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
-4. 生成脚本流量（宿主机打到 Docker 测试端口）：
+4. 生成宿主机脚本流量（打到 Docker 映射端口）：
 
 ```
 cd scripts
 ./test-all-protocols-host.ps1
 ```
 
-5. 此时 5174 页面会同时展示真实流量与脚本流量。
+5. 如果宿主机抓不到这些端口流量（某些网卡/虚拟化环境），直接使用方式 D。
+
+### 方式 D：Codex 一键启动（真实 + 脚本流量同屏）
+
+适用场景：你只想做最少的事，其余交给 Codex 自动启动。
+
+人类必做事项（必须完成）：
+1. 确认已安装 Npcap（Windows）或 libpcap（Linux）。
+2. 确认 Docker Desktop 已启动，且能拉取镜像或已有本地镜像。
+3. 用管理员权限打开 PowerShell，准备提供网卡 GUID。
+4. 确认仓库路径为 `E:/CodeSpace/net-audit`。
+
+把下面提示词交给 Codex：
+
+```
+你是 Codex，请在 E:/CodeSpace/net-audit 操作并用 MCP 工具读写。
+目标：让我在 http://localhost:5173/dashboard 同时看到真实流量与脚本流量。
+前提：Docker 可拉取镜像或本地已有镜像；Npcap 已安装；PowerShell 以管理员权限运行。
+要求：
+1. 获取可用网卡 GUID 并提示我确认，用它设置 CAPTURE_INTERFACE。
+2. docker compose 启动 test-nginx/test-ftp/test-telnet/test-dns/test-smtp/test-pop3/postgres。
+3. 在 backend 目录构建 jar：./gradlew.bat shadowJar -x test。
+4. 启动宿主机后端（真实流量，端口 8080）。
+5. 启动 docker 抓包后端（端口 8082），安装 libpcap0.8，设置 SystemRoot=/。
+6. 前端用 VITE_API_BASES=http://127.0.0.1:8080,http://127.0.0.1:8082 启动到 5173。
+7. 以 --network container:netaudit-backend-docker 运行 netaudit-test-client 脚本。
+8. 验证 http://127.0.0.1:8082/api/audit/logs?protocol=FTP/SMTP/POP3 有数据。
+9. 告诉我打开 5173 观察结果。
+出现失败要明确原因并给出修复指令。
+```
+
+成功验证：
+1. `http://127.0.0.1:8080/health` 返回 `ok`。
+2. `http://127.0.0.1:8082/api/audit/logs?protocol=FTP&size=5` 有数据。
+3. 打开 `http://localhost:5173/dashboard` 能同时看到真实与脚本流量。
 
 ## 协议显示与解析边界（重要）
 
