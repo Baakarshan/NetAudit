@@ -39,8 +39,39 @@ const isScriptEvent = (event: AuditEvent) =>
 const sortByTimeDesc = (a: AuditEvent, b: AuditEvent) =>
   new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
 
+const isLocalHost = (host: string) =>
+  host === 'localhost' ||
+  host === '127.0.0.1' ||
+  host === '::1' ||
+  host.startsWith('127.') ||
+  host.startsWith('172.28.')
+
+const isInternalApiEvent = (event: AuditEvent) => {
+  if (event.protocol !== 'HTTP') return false
+  const rawUrl = (event as any)?.url
+  if (!rawUrl) return false
+  try {
+    const parsed = new URL(String(rawUrl))
+    if (!isLocalHost(parsed.hostname)) return false
+    if (!parsed.pathname.startsWith('/api/')) return false
+    if (parsed.port && parsed.port !== '8080' && parsed.port !== '8081') {
+      return false
+    }
+    return true
+  } catch {
+    const text = String(rawUrl).toLowerCase()
+    if (!text.includes('/api/')) return false
+    return (
+      text.includes('127.0.0.1') ||
+      text.includes('localhost') ||
+      text.includes('[::1]') ||
+      text.includes('172.28.')
+    )
+  }
+}
+
 const rows = computed(() => {
-  const events = props.events ?? []
+  const events = (props.events ?? []).filter(event => !isInternalApiEvent(event))
   if (events.length <= 20) return events
   const scriptEvents = events.filter(isScriptEvent).sort(sortByTimeDesc)
   const realEvents = events.filter(event => !isScriptEvent(event)).sort(sortByTimeDesc)
