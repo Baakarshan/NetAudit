@@ -276,190 +276,113 @@ net-audit/
 8. 遵循架构链路：Capture → Decode → Stream → Parser → EventBus → Storage/API。
 ```
 
-## 保姆级使用指南
+## 保姆级使用指南（照着输入就能跑通）
 
-### 方式 A：Docker 一键启动（推荐）
+本节目标：你只要复制命令、按顺序点击页面，就能看到数据。
 
-适用场景：答辩演示、端到端联调。
+### 0. 启动前检查（1 分钟）
 
-1. 准备环境文件。
+在仓库根目录执行：
 
-```
-cd docker
-cp .env.example .env
-```
-
-2. 构建并启动服务。
-
-```
-docker compose up -d --build
+```bash
+docker --version
+docker compose version
 ```
 
-若拉取镜像受限，先确保镜像已可用，再启动：
+通过标准：两个命令都能输出版本号。
 
-```
-docker compose up -d --no-build
-```
+如果你是第一次运行，建议先确认 Docker Desktop 处于 Running 状态。
 
-3. 查看服务状态。
+### 1. 一键启动全部服务（推荐主流程）
 
-```
-docker compose ps
-```
+在仓库根目录执行：
 
-4. 访问前端与健康检查。
-
-```
-http://localhost:5173
-http://localhost:8080/health
+```bash
+docker compose -f "docker/docker-compose.yml" up -d --build
 ```
 
-5. 确保 `test-client` 已运行（用于 `docker exec`）。
+再执行：
 
-```
-docker compose up -d test-client
-```
-
-6. 生成全协议测试流量。
-
-```
-docker exec netaudit-test-client bash /scripts/test-all-protocols.sh
+```bash
+docker compose -f "docker/docker-compose.yml" ps
 ```
 
-7. 验证统计变化。
+通过标准：`postgres`、`backend`、`frontend` 状态为 `Up`（`backend` 最好显示 `healthy`）。
 
-```
-curl http://localhost:8080/api/stats/dashboard
-```
+### 2. 直接点击验证（不用写代码）
 
-看到 `totalEvents` 增长即表示链路通。
+按顺序打开下面地址：
 
-8. 关闭与清理。
+1. 前端首页（会自动跳转 Dashboard）：`http://localhost:5173/`
+2. 仪表盘直达：`http://localhost:5173/dashboard`
+3. 后端健康检查：`http://localhost:8080/health`
 
-```
-docker compose down -v
-```
+通过标准：
+- 前端页面能打开。
+- `/health` 返回 `{"status":"ok"}`。
 
-说明：
-- `test-client` 使用 `network_mode: service:backend`，确保后端能抓到它产生的流量。
-- 端口映射已包含：HTTP(18080)、FTP(2121)、TELNET(2323)、DNS(1053)、SMTP(2525)、POP3(2110)。
-- 若构建失败，优先检查 Docker 访问镜像仓库的网络与代理配置。
+### 3. 一键生成测试流量
 
-### 方式 B：本地开发（真实流量）
+执行：
 
-适用场景：需要抓宿主机浏览器/系统真实流量。
-
-1. 启动数据库（可用 Docker）。
-
-```
-cd docker
-docker compose up -d postgres
+```bash
+docker compose -f "docker/docker-compose.yml" up -d test-client
+docker compose -f "docker/docker-compose.yml" exec test-client bash /scripts/test-all-protocols.sh
 ```
 
-2. 配置抓包网卡（Windows 建议管理员权限运行 PowerShell）。
+这个脚本会依次打 HTTP / FTP / TELNET / DNS / SMTP / POP3 六类流量。
 
-Windows：
+### 4. 用接口确认“确实有数据”
 
-```
-Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | ForEach-Object { "$($_.Name) -> \\Device\\NPF_{$($_.InterfaceGuid)}" }
-$env:CAPTURE_INTERFACE="\\Device\\NPF_{GUID}"
-```
+执行：
 
-Linux/Mac 通常用 `eth0` 或 `en0`。
-
-3. 关闭浏览器 QUIC（HTTPS 默认走 UDP 443，会影响解析）。
-
-- Chrome/Edge：`chrome://flags/#enable-quic` → Disabled → 重启浏览器。
-
-4. 启动后端（端口可改为 8081）。
-
-```
-cd backend
-$env:JAVA_TOOL_OPTIONS="-Dktor.deployment.port=8081"
-./gradlew.bat run
+```bash
+curl "http://localhost:8080/api/stats/dashboard"
+curl "http://localhost:8080/api/audit/logs?size=5"
+curl "http://localhost:8080/api/alerts/recent?size=5"
 ```
 
-5. 启动前端并指向后端。
+通过标准：
+- `dashboard` 返回 JSON，且 `totalEvents` 大于 0。
+- `audit/logs` 返回列表（至少 1 条）。
 
-```
-cd frontend
-npm install
-$env:VITE_API_BASE="http://127.0.0.1:8081"
-$env:VITE_WS_URL="ws://127.0.0.1:8081"
-npm run dev -- --host 127.0.0.1 --port 5174
-```
+### 5. 页面点击顺序（演示/验收建议）
 
-6. 验证实时链路。
+1. 打开 `http://localhost:5173/dashboard` 看总量和趋势图是否变化。
+2. 打开 `http://localhost:5173/audit` 看日志是否持续刷新。
+3. 打开 `http://localhost:5173/alerts` 看是否出现告警记录。
 
-```
-Invoke-RestMethod -Uri "http://127.0.0.1:8081/api/stats/dashboard"
-curl.exe -s -N --max-time 3 http://127.0.0.1:8081/api/sse/events
-```
+### 6. 停止与清理
 
-### 方式 C：宿主机单后端（真实流量 + 宿主机脚本流量）
-
-适用场景：仅使用宿主机后端抓包，同时看到真实流量与宿主机脚本流量。
-
-1. 启动 Docker 测试服务（只提供协议服务端口）。
-
-```
-cd docker
-docker compose up -d --build test-nginx test-ftp test-telnet test-dns test-smtp test-pop3
+```bash
+docker compose -f "docker/docker-compose.yml" down -v
 ```
 
-2. 启动本地后端（例：8081）并指向真实网卡。
+---
 
-3. 前端指向该后端：
+### 常见失败与直接处理（按报错对照）
 
-```
-cd frontend
-$env:VITE_API_BASE="http://127.0.0.1:8081"
-$env:VITE_WS_URL="ws://127.0.0.1:8081"
-npm run dev -- --host 127.0.0.1 --port 5174
-```
+1. `failed to solve: lstat /backend/build/libs: no such file or directory`
+- 这是旧版本问题。
+- 处理：先 `git pull` 到最新 `main`，再重新执行第 1 步。
 
-4. 生成宿主机脚本流量（打到 Docker 映射端口）：
+2. `Remote host terminated the handshake` 或 Maven/Gradle 下载失败
+- 这是网络到依赖仓库不稳定，不是业务代码错误。
+- 处理：重试一次构建，或配置网络代理后再执行第 1 步。
 
-```
-cd scripts
-./test-all-protocols-host.ps1
-```
+3. `Bind for 0.0.0.0:8080/5173 failed: port is already allocated`
+- 端口被占用。
+- 处理：修改 `docker/.env` 里的 `BACKEND_PORT`、`FRONTEND_PORT`，再执行第 1 步。
 
-5. 如果宿主机抓不到这些端口流量（某些网卡/虚拟化环境），直接使用方式 D。
+4. 前端打开了但没有数据
+- 处理顺序：
+  1) 先确认 `http://localhost:8080/health` 正常。
+  2) 再执行第 3 步生成流量。
+  3) 再执行第 4 步确认 API 有数据。
 
-### 方式 D：Codex 一键启动（真实 + 脚本流量同屏）
+### 进阶（可选）：抓宿主机真实流量
 
-适用场景：你只想做最少的事，其余交给 Codex 自动启动。
-
-人类必做事项（必须完成）：
-1. 确认已安装 Npcap（Windows）或 libpcap（Linux）。
-2. 确认 Docker Desktop 已启动，且能拉取镜像或已有本地镜像。
-3. 用管理员权限打开 PowerShell，准备提供网卡 GUID。
-4. 确认仓库路径为 `E:/CodeSpace/net-audit`。
-
-把下面提示词交给 Codex：
-
-```
-你是 Codex，请在 E:/CodeSpace/net-audit 操作并用 MCP 工具读写。
-目标：让我在 http://localhost:5173/dashboard 同时看到真实流量与脚本流量。
-前提：Docker 可拉取镜像或本地已有镜像；Npcap 已安装；PowerShell 以管理员权限运行。
-要求：
-1. 获取可用网卡 GUID 并提示我确认，用它设置 CAPTURE_INTERFACE。
-2. docker compose 启动 test-nginx/test-ftp/test-telnet/test-dns/test-smtp/test-pop3/postgres。
-3. 在 backend 目录构建 jar：./gradlew.bat shadowJar -x test。
-4. 启动宿主机后端（真实流量，端口 8080）。
-5. 启动 docker 抓包后端（端口 8082），安装 libpcap0.8，设置 SystemRoot=/。
-6. 前端用 VITE_API_BASES=http://127.0.0.1:8080,http://127.0.0.1:8082 启动到 5173。
-7. 以 --network container:netaudit-backend-docker 运行 netaudit-test-client 脚本。
-8. 验证 http://127.0.0.1:8082/api/audit/logs?protocol=FTP/SMTP/POP3 有数据。
-9. 告诉我打开 5173 观察结果。
-出现失败要明确原因并给出修复指令。
-```
-
-成功验证：
-1. `http://127.0.0.1:8080/health` 返回 `ok`。
-2. `http://127.0.0.1:8082/api/audit/logs?protocol=FTP&size=5` 有数据。
-3. 打开 `http://localhost:5173/dashboard` 能同时看到真实与脚本流量。
+如果你需要抓自己电脑浏览器的真实流量（而不是仅抓 Docker 内部流量），请改用宿主机网卡并配置 `CAPTURE_INTERFACE`，可参考 `scripts/test-all-protocols-host.ps1` 生成宿主机侧测试流量。
 
 ## 协议显示与解析边界（重要）
 
@@ -515,3 +438,4 @@ npm run lint
 ## 许可证
 
 MIT License
+
