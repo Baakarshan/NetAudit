@@ -342,6 +342,14 @@ curl "http://localhost:8080/api/audit/logs?size=5"
 curl "http://localhost:8080/api/alerts/recent?size=5"
 ```
 
+如果你在 Windows PowerShell 里没有 `curl`，可改用：
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/stats/dashboard"
+Invoke-RestMethod -Uri "http://localhost:8080/api/audit/logs?size=5"
+Invoke-RestMethod -Uri "http://localhost:8080/api/alerts/recent?size=5"
+```
+
 通过标准：
 - `dashboard` 返回 JSON，且 `totalEvents` 大于 0。
 - `audit/logs` 返回列表（至少 1 条）。
