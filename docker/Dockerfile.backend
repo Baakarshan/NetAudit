@@ -1,10 +1,13 @@
-FROM gradle:8.10.2-jdk21-alpine AS builder
+ARG GRADLE_IMAGE=gradle:8.10.2-jdk21-alpine
+ARG JRE_IMAGE=eclipse-temurin:21-jre-alpine
+
+FROM ${GRADLE_IMAGE} AS builder
 
 WORKDIR /workspace/backend
 COPY backend/ ./
 RUN gradle --no-daemon shadowJar
 
-FROM eclipse-temurin:21-jre-alpine
+FROM ${JRE_IMAGE}
 
 WORKDIR /app
 RUN apk add --no-cache libpcap libpcap-dev netcat-openbsd curl

@@ -1,4 +1,5 @@
-FROM nginx:alpine
+ARG NGINX_IMAGE=nginx:alpine
+FROM ${NGINX_IMAGE}
 
 RUN mkdir -p /usr/share/nginx/html/admin /usr/share/nginx/html/api && \
     echo '<h1>Welcome to NetAudit Test</h1>' > /usr/share/nginx/html/index.html && \

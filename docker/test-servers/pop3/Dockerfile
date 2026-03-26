@@ -1,4 +1,5 @@
-FROM python:3.12-alpine
+ARG PYTHON_IMAGE=python:3.12-alpine
+FROM ${PYTHON_IMAGE}
 
 RUN cat > /pop3_server.py <<'PYEOF'
 import socketserver

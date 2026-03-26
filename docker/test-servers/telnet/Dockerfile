@@ -1,4 +1,5 @@
-FROM alpine:3.19
+ARG ALPINE_IMAGE=alpine:3.19
+FROM ${ALPINE_IMAGE}
 
 RUN apk add --no-cache busybox-extras shadow && \
     adduser -D -s /bin/sh testuser && \

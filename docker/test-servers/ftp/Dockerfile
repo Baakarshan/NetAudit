@@ -1,4 +1,5 @@
-FROM fauria/vsftpd:latest
+ARG VSFTPD_IMAGE=fauria/vsftpd:latest
+FROM ${VSFTPD_IMAGE}
 
 RUN mkdir -p /home/vsftpd/alice/pub && \
     echo 'This is a secret document' > /home/vsftpd/alice/secret.doc && \

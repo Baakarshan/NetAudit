@@ -289,8 +289,8 @@ net-audit/
 1. 启动服务：
 
 ```bash
-docker compose -f "docker/docker-compose.yml" up -d --build
-docker compose -f "docker/docker-compose.yml" ps
+docker compose --env-file docker/.env -f "docker/docker-compose.yml" up -d --build
+docker compose --env-file docker/.env -f "docker/docker-compose.yml" ps
 ```
 
 2. 打开页面和健康检查：
@@ -301,8 +301,8 @@ docker compose -f "docker/docker-compose.yml" ps
 3. 造测试流量：
 
 ```bash
-docker compose -f "docker/docker-compose.yml" up -d test-client
-docker compose -f "docker/docker-compose.yml" exec test-client bash /scripts/test-all-protocols.sh
+docker compose --env-file docker/.env -f "docker/docker-compose.yml" up -d test-client
+docker compose --env-file docker/.env -f "docker/docker-compose.yml" exec test-client bash /scripts/test-all-protocols.sh
 ```
 
 4. 校验数据：
@@ -326,8 +326,8 @@ Invoke-RestMethod -Uri "http://localhost:8080/api/audit/logs?size=5"
 #### Step 1）先全量启动，再停掉 Docker backend（保留前端与数据库）
 
 ```bash
-docker compose -f "docker/docker-compose.yml" up -d --build
-docker compose -f "docker/docker-compose.yml" stop backend test-client
+docker compose --env-file docker/.env -f "docker/docker-compose.yml" up -d --build
+docker compose --env-file docker/.env -f "docker/docker-compose.yml" stop backend test-client
 ```
 
 说明：
@@ -394,7 +394,11 @@ cd E:/CodeSpace/net-audit/backend
 
 5. Docker 构建时出现 `EOF` / `Remote host terminated the handshake`
 - 是镜像仓库网络问题，不是业务代码问题。
-- 处理：重试构建，或配置网络代理后重试。
+- 处理步骤（Ubuntu）：
+  - 先检测网络：`curl -I https://registry-1.docker.io/v2/`
+  - 检测鉴权：`curl -I "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nginx:pull"`
+  - 若失败，复制 `docker/.env.example` 为 `docker/.env` 并覆盖镜像（见 `docker/README.md`）
+  - 然后重试：`docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build`
 
 6. 页面能打开，但“真实流量”没有
 - 先确认你当前运行的是“模式 B”（宿主机 backend），不是 Docker backend。
@@ -439,7 +443,9 @@ npm run lint
 ## 常见问题
 
 1. **Docker 构建失败（拉取镜像受限）**
-- 使用 `docker compose up -d --no-build` 启动已构建镜像。
+- 先按 `docker/README.md` 配置 `docker/.env` 镜像覆盖，再执行：
+  - `docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build`
+- 只有本地已有镜像时，才使用 `docker compose up -d --no-build`。
 
 2. **抓包权限不足**
 - Linux 需 root 或授予抓包权限；Docker 已启用 `NET_RAW/NET_ADMIN`。

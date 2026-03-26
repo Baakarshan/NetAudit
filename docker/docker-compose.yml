@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    image: ${POSTGRES_IMAGE:-postgres:15-alpine}
     container_name: netaudit-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-netaudit}
@@ -23,6 +23,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
+      args:
+        GRADLE_IMAGE: ${BACKEND_BUILDER_IMAGE:-gradle:8.10.2-jdk21-alpine}
+        JRE_IMAGE: ${BACKEND_RUNTIME_IMAGE:-eclipse-temurin:21-jre-alpine}
     container_name: netaudit-backend
     depends_on:
       postgres:
@@ -53,6 +56,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
+      args:
+        NODE_IMAGE: ${FRONTEND_NODE_IMAGE:-node:20-alpine}
+        NGINX_IMAGE: ${FRONTEND_NGINX_IMAGE:-nginx:alpine}
     container_name: netaudit-frontend
     depends_on:
       backend:
@@ -65,6 +71,8 @@ services:
   test-nginx:
     build:
       context: ./test-servers/nginx
+      args:
+        NGINX_IMAGE: ${TEST_NGINX_IMAGE:-nginx:alpine}
     container_name: netaudit-test-nginx
     ports:
       - "19080:80"
@@ -80,6 +88,8 @@ services:
   test-ftp:
     build:
       context: ./test-servers/ftp
+      args:
+        VSFTPD_IMAGE: ${TEST_FTP_IMAGE:-fauria/vsftpd:latest}
     container_name: netaudit-test-ftp
     ports:
       - "2121:21"
@@ -94,6 +104,8 @@ services:
   test-telnet:
     build:
       context: ./test-servers/telnet
+      args:
+        ALPINE_IMAGE: ${TEST_TELNET_ALPINE_IMAGE:-alpine:3.19}
     container_name: netaudit-test-telnet
     ports:
       - "2323:23"
@@ -104,6 +116,8 @@ services:
   test-dns:
     build:
       context: ./test-servers/dns
+      args:
+        PYTHON_IMAGE: ${TEST_DNS_PYTHON_IMAGE:-python:3.12-alpine}
     container_name: netaudit-test-dns
     ports:
       - "1053:53/udp"
@@ -115,6 +129,8 @@ services:
   test-smtp:
     build:
       context: ./test-servers/smtp
+      args:
+        PYTHON_IMAGE: ${TEST_SMTP_PYTHON_IMAGE:-python:3.12-alpine}
     container_name: netaudit-test-smtp
     ports:
       - "2525:25"
@@ -125,6 +141,8 @@ services:
   test-pop3:
     build:
       context: ./test-servers/pop3
+      args:
+        PYTHON_IMAGE: ${TEST_POP3_PYTHON_IMAGE:-python:3.12-alpine}
     container_name: netaudit-test-pop3
     ports:
       - "2110:110"
@@ -136,6 +154,8 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.test-client
+      args:
+        ALPINE_IMAGE: ${TEST_CLIENT_ALPINE_IMAGE:-alpine:3.19}
     container_name: netaudit-test-client
     network_mode: "service:backend"
     depends_on:
