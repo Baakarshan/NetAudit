@@ -278,119 +278,127 @@ net-audit/
 
 ## 保姆级使用指南（照着输入就能跑通）
 
-本节目标：你只要复制命令、按顺序点击页面，就能看到数据。
+先记住一句话：
+- **Docker backend（`CAPTURE_INTERFACE=eth0`）只能抓容器网络流量。**
+- **要看你浏览器真实流量（例如刷新 `https://leetcode.cn`），必须用宿主机 backend 抓包。**
 
-### 0. 启动前检查（1 分钟）
+### 模式 A：Docker 演示流量（最快跑通）
 
-在仓库根目录执行：
+适用场景：课堂演示、功能联调、验证页面能跑。
 
-```bash
-docker --version
-docker compose version
-```
-
-通过标准：两个命令都能输出版本号。
-
-如果你是第一次运行，建议先确认 Docker Desktop 处于 Running 状态。
-
-### 1. 一键启动全部服务（推荐主流程）
-
-在仓库根目录执行：
+1. 启动服务：
 
 ```bash
 docker compose -f "docker/docker-compose.yml" up -d --build
-```
-
-再执行：
-
-```bash
 docker compose -f "docker/docker-compose.yml" ps
 ```
 
-通过标准：`postgres`、`backend`、`frontend` 状态为 `Up`（`backend` 最好显示 `healthy`）。
+2. 打开页面和健康检查：
 
-### 2. 直接点击验证（不用写代码）
+- `http://localhost:5173/dashboard`
+- `http://localhost:8080/health`
 
-按顺序打开下面地址：
-
-1. 前端首页（会自动跳转 Dashboard）：`http://localhost:5173/`
-2. 仪表盘直达：`http://localhost:5173/dashboard`
-3. 后端健康检查：`http://localhost:8080/health`
-
-通过标准：
-- 前端页面能打开。
-- `/health` 返回 `{"status":"ok"}`。
-
-### 3. 一键生成测试流量
-
-执行：
+3. 造测试流量：
 
 ```bash
 docker compose -f "docker/docker-compose.yml" up -d test-client
 docker compose -f "docker/docker-compose.yml" exec test-client bash /scripts/test-all-protocols.sh
 ```
 
-这个脚本会依次打 HTTP / FTP / TELNET / DNS / SMTP / POP3 六类流量。
-
-### 4. 用接口确认“确实有数据”
-
-执行：
+4. 校验数据：
 
 ```bash
 curl "http://localhost:8080/api/stats/dashboard"
 curl "http://localhost:8080/api/audit/logs?size=5"
-curl "http://localhost:8080/api/alerts/recent?size=5"
 ```
 
-如果你在 Windows PowerShell 里没有 `curl`，可改用：
+Windows PowerShell 可用：
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8080/api/stats/dashboard"
 Invoke-RestMethod -Uri "http://localhost:8080/api/audit/logs?size=5"
-Invoke-RestMethod -Uri "http://localhost:8080/api/alerts/recent?size=5"
 ```
 
-通过标准：
-- `dashboard` 返回 JSON，且 `totalEvents` 大于 0。
-- `audit/logs` 返回列表（至少 1 条）。
+### 模式 B：宿主机真实流量（看浏览器访问）
 
-### 5. 页面点击顺序（演示/验收建议）
+适用场景：你要看 `leetcode.cn`、浏览器真实访问轨迹。
 
-1. 打开 `http://localhost:5173/dashboard` 看总量和趋势图是否变化。
-2. 打开 `http://localhost:5173/audit` 看日志是否持续刷新。
-3. 打开 `http://localhost:5173/alerts` 看是否出现告警记录。
-
-### 6. 停止与清理
+#### Step 1）先全量启动，再停掉 Docker backend（保留前端与数据库）
 
 ```bash
-docker compose -f "docker/docker-compose.yml" down -v
+docker compose -f "docker/docker-compose.yml" up -d --build
+docker compose -f "docker/docker-compose.yml" stop backend test-client
 ```
 
----
+说明：
+- `test-nginx` 端口已改为 `19080`（不是 `18080`）。
+- `frontend` 仍通过 `http://localhost:5173` 访问。
+
+#### Step 2）在宿主机启动 backend（Windows PowerShell，建议管理员）
+
+1. 找到正在上网的网卡 GUID：
+
+```powershell
+Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | ForEach-Object { "$($_.Name) -> \\Device\\NPF_{$($_.InterfaceGuid)}" }
+```
+
+2. 设置环境变量并启动（把 `{你的GUID}` 替换掉）：
+
+```powershell
+$env:CAPTURE_INTERFACE="\\Device\\NPF_{你的GUID}"
+$env:CAPTURE_PROMISCUOUS="true"
+$env:DATABASE_URL="jdbc:postgresql://localhost:5432/netaudit"
+$env:DATABASE_USER="netaudit"
+$env:DATABASE_PASSWORD="netaudit"
+$env:JAVA_TOOL_OPTIONS="-Dktor.deployment.port=8080"
+
+cd E:/CodeSpace/net-audit/backend
+java -jar E:/CodeSpace/net-audit/backend/build/libs/netaudit-all.jar
+```
+
+如果你本地没有这个 jar，先执行一次：
+
+```powershell
+cd E:/CodeSpace/net-audit/backend
+./gradlew.bat shadowJar -x test
+```
+
+#### Step 3）验证真实浏览器流量（以 leetcode.cn 为例）
+
+1. 浏览器先关闭 QUIC（Chrome/Edge）：
+   - 打开 `chrome://flags/#enable-quic`
+   - 设为 `Disabled` 后重启浏览器
+2. 打开 `http://localhost:5173/dashboard`
+3. 刷新 `https://leetcode.cn/`
+4. 在审计日志里查看：
+   - 应该看到 `TLS` 事件（`serverName` 可能是 `leetcode.cn` 或 CDN 域名）
+   - 可能看到 `DNS` 事件
+   - **不会**看到明文 `HTTP` 内容（HTTPS 加密）
 
 ### 常见失败与直接处理（按报错对照）
 
 1. `failed to solve: lstat /backend/build/libs: no such file or directory`
-- 这是旧版本问题。
-- 处理：先 `git pull` 到最新 `main`，再重新执行第 1 步。
+- 这是旧版本镜像构建方式问题。
+- 处理：`git pull` 到最新 `main` 后重试。
 
-2. `Remote host terminated the handshake` 或 Maven/Gradle 下载失败
-- 这是网络到依赖仓库不稳定，不是业务代码错误。
-- 处理：重试一次构建，或配置网络代理后再执行第 1 步。
+2. `exec /wait-for-it.sh: no such file or directory`
+- 处理：`git pull` 到最新 `main`，重新 `docker compose ... --build`。
 
-3. `Bind for 0.0.0.0:8080/5173 failed: port is already allocated`
-- 端口被占用。
-- 处理：修改 `docker/.env` 里的 `BACKEND_PORT`、`FRONTEND_PORT`，再执行第 1 步。
+3. `failed to solve ... npm run build ... exit code: 2`
+- 常见于前端类型构建失败。
+- 处理：确保代码已更新到含 `client.ts` 与 `vite-env.d.ts` 修复的最新版本。
 
-4. 前端打开了但没有数据
-- 处理顺序：
-  1) 先确认 `http://localhost:8080/health` 正常。
-  2) 再执行第 3 步生成流量。
-  3) 再执行第 4 步确认 API 有数据。
+4. `Ports are not available ... 0.0.0.0:18080`
+- 已改为 `19080`。
+- 处理：确认你使用的是最新 `docker/docker-compose.yml`。
 
-### 进阶（可选）：抓宿主机真实流量
+5. Docker 构建时出现 `EOF` / `Remote host terminated the handshake`
+- 是镜像仓库网络问题，不是业务代码问题。
+- 处理：重试构建，或配置网络代理后重试。
 
-如果你需要抓自己电脑浏览器的真实流量（而不是仅抓 Docker 内部流量），请改用宿主机网卡并配置 `CAPTURE_INTERFACE`，可参考 `scripts/test-all-protocols-host.ps1` 生成宿主机侧测试流量。
+6. 页面能打开，但“真实流量”没有
+- 先确认你当前运行的是“模式 B”（宿主机 backend），不是 Docker backend。
+- 浏览器若启用 QUIC，可能减少可见 TCP/TLS 流量；必要时先关闭 QUIC 再试。
 
 ## 协议显示与解析边界（重要）
 
@@ -446,4 +454,3 @@ npm run lint
 ## 许可证
 
 MIT License
-
