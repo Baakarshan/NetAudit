@@ -39,6 +39,14 @@ TEST_POP3_PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-alpine
 TEST_CLIENT_ALPINE_IMAGE=docker.m.daocloud.io/library/alpine:3.19
 ```
 
+前端构建（`npm ci`）默认先用 `FRONTEND_NPM_REGISTRY`，失败后自动回退到 `FRONTEND_NPM_REGISTRY_FALLBACK`。
+若你所在网络访问 npm 官方源不稳定，可直接改成：
+
+```env
+FRONTEND_NPM_REGISTRY=https://registry.npmmirror.com
+FRONTEND_NPM_REGISTRY_FALLBACK=https://registry.npmjs.org
+```
+
 建议显式指定 env 文件启动，避免工作目录差异导致 `.env` 未生效：
 
 ```bash

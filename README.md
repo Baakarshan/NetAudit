@@ -388,6 +388,13 @@ cd E:/CodeSpace/net-audit/backend
 - 常见于前端类型构建失败。
 - 处理：确保代码已更新到含 `client.ts` 与 `vite-env.d.ts` 修复的最新版本。
 
+3.1 `npm ci` 报 `ETIMEDOUT`（例如 `registry.npmjs.org` 超时）
+- 是 npm 仓库网络问题，不是业务代码问题。
+- 当前版本已在前端 Dockerfile 内置自动回退：主源失败会自动切到备用源重试。
+- 如仍不稳定，在 `docker/.env` 显式设置：
+  - `FRONTEND_NPM_REGISTRY=https://registry.npmmirror.com`
+  - `FRONTEND_NPM_REGISTRY_FALLBACK=https://registry.npmjs.org`
+
 4. `Ports are not available ... 0.0.0.0:18080`
 - 已改为 `19080`。
 - 处理：确认你使用的是最新 `docker/docker-compose.yml`。

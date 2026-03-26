@@ -59,6 +59,8 @@ services:
       args:
         NODE_IMAGE: ${FRONTEND_NODE_IMAGE:-node:20-alpine}
         NGINX_IMAGE: ${FRONTEND_NGINX_IMAGE:-nginx:alpine}
+        NPM_REGISTRY: ${FRONTEND_NPM_REGISTRY:-https://registry.npmjs.org}
+        NPM_REGISTRY_FALLBACK: ${FRONTEND_NPM_REGISTRY_FALLBACK:-https://registry.npmmirror.com}
     container_name: netaudit-frontend
     depends_on:
       backend:
