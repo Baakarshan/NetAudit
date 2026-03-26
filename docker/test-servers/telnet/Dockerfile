@@ -1,4 +1,4 @@
-ARG ALPINE_IMAGE=alpine:3.19
+ARG ALPINE_IMAGE=docker.m.daocloud.io/library/alpine:3.19
 FROM ${ALPINE_IMAGE}
 
 RUN apk add --no-cache busybox-extras shadow && \

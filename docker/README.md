@@ -20,9 +20,17 @@ cp .env.example .env
 - `VITE_API_URL`: 前端 API 地址
 - `VITE_WS_URL`: 前端 WebSocket 地址
 
-## 镜像源覆盖（网络受限时）
+## 默认网络策略
 
-当 Docker Hub 不稳定（如 `failed to fetch anonymous token`、`connection reset by peer`）时，可在 `docker/.env` 覆盖镜像：
+当前 `docker-compose.yml` 默认已使用镜像站与 npm 镜像源，通常直接执行即可：
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build
+```
+
+## 镜像源覆盖（按需）
+
+若你需要手工指定镜像，可在 `docker/.env` 覆盖：
 
 ```env
 POSTGRES_IMAGE=docker.m.daocloud.io/library/postgres:15-alpine
@@ -45,10 +53,4 @@ TEST_CLIENT_ALPINE_IMAGE=docker.m.daocloud.io/library/alpine:3.19
 ```env
 FRONTEND_NPM_REGISTRY=https://registry.npmmirror.com
 FRONTEND_NPM_REGISTRY_FALLBACK=https://registry.npmjs.org
-```
-
-建议显式指定 env 文件启动，避免工作目录差异导致 `.env` 未生效：
-
-```bash
-docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build
 ```

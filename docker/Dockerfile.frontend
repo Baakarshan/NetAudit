@@ -1,7 +1,7 @@
-ARG NODE_IMAGE=node:20-alpine
-ARG NGINX_IMAGE=nginx:alpine
-ARG NPM_REGISTRY=https://registry.npmjs.org
-ARG NPM_REGISTRY_FALLBACK=https://registry.npmmirror.com
+ARG NODE_IMAGE=docker.m.daocloud.io/library/node:20-alpine
+ARG NGINX_IMAGE=docker.m.daocloud.io/library/nginx:alpine
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+ARG NPM_REGISTRY_FALLBACK=https://registry.npmjs.org
 
 FROM ${NODE_IMAGE} AS builder
 

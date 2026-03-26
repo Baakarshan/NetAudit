@@ -1,4 +1,4 @@
-ARG NGINX_IMAGE=nginx:alpine
+ARG NGINX_IMAGE=docker.m.daocloud.io/library/nginx:alpine
 FROM ${NGINX_IMAGE}
 
 RUN mkdir -p /usr/share/nginx/html/admin /usr/share/nginx/html/api && \

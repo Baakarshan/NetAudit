@@ -289,8 +289,8 @@ net-audit/
 1. 启动服务：
 
 ```bash
-docker compose --env-file docker/.env -f "docker/docker-compose.yml" up -d --build
-docker compose --env-file docker/.env -f "docker/docker-compose.yml" ps
+docker compose -f "docker/docker-compose.yml" up -d --build
+docker compose -f "docker/docker-compose.yml" ps
 ```
 
 2. 打开页面和健康检查：
@@ -301,8 +301,8 @@ docker compose --env-file docker/.env -f "docker/docker-compose.yml" ps
 3. 造测试流量：
 
 ```bash
-docker compose --env-file docker/.env -f "docker/docker-compose.yml" up -d test-client
-docker compose --env-file docker/.env -f "docker/docker-compose.yml" exec test-client bash /scripts/test-all-protocols.sh
+docker compose -f "docker/docker-compose.yml" up -d test-client
+docker compose -f "docker/docker-compose.yml" exec test-client bash /scripts/test-all-protocols.sh
 ```
 
 4. 校验数据：
@@ -326,8 +326,8 @@ Invoke-RestMethod -Uri "http://localhost:8080/api/audit/logs?size=5"
 #### Step 1）先全量启动，再停掉 Docker backend（保留前端与数据库）
 
 ```bash
-docker compose --env-file docker/.env -f "docker/docker-compose.yml" up -d --build
-docker compose --env-file docker/.env -f "docker/docker-compose.yml" stop backend test-client
+docker compose -f "docker/docker-compose.yml" up -d --build
+docker compose -f "docker/docker-compose.yml" stop backend test-client
 ```
 
 说明：
@@ -404,8 +404,8 @@ cd E:/CodeSpace/net-audit/backend
 - 处理步骤（Ubuntu）：
   - 先检测网络：`curl -I https://registry-1.docker.io/v2/`
   - 检测鉴权：`curl -I "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nginx:pull"`
-  - 若失败，复制 `docker/.env.example` 为 `docker/.env` 并覆盖镜像（见 `docker/README.md`）
-  - 然后重试：`docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build`
+  - 当前默认已使用镜像站；直接重试：`docker compose -f docker/docker-compose.yml up -d --build`
+  - 若仍失败，按 `docker/README.md` 手工覆盖镜像，或配置 Docker daemon 镜像加速器
 
 6. 页面能打开，但“真实流量”没有
 - 先确认你当前运行的是“模式 B”（宿主机 backend），不是 Docker backend。
@@ -450,8 +450,8 @@ npm run lint
 ## 常见问题
 
 1. **Docker 构建失败（拉取镜像受限）**
-- 先按 `docker/README.md` 配置 `docker/.env` 镜像覆盖，再执行：
-  - `docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build`
+- 先直接执行：`docker compose -f docker/docker-compose.yml up -d --build`
+- 若仍失败，再按 `docker/README.md` 覆盖镜像并重试
 - 只有本地已有镜像时，才使用 `docker compose up -d --no-build`。
 
 2. **抓包权限不足**

@@ -1,5 +1,5 @@
-ARG GRADLE_IMAGE=gradle:8.10.2-jdk21-alpine
-ARG JRE_IMAGE=eclipse-temurin:21-jre-alpine
+ARG GRADLE_IMAGE=docker.m.daocloud.io/library/gradle:8.10.2-jdk21-alpine
+ARG JRE_IMAGE=docker.m.daocloud.io/library/eclipse-temurin:21-jre-alpine
 
 FROM ${GRADLE_IMAGE} AS builder
 

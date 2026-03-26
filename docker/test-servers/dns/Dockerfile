@@ -1,4 +1,4 @@
-ARG PYTHON_IMAGE=python:3.12-alpine
+ARG PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-alpine
 FROM ${PYTHON_IMAGE}
 
 RUN pip install dnslib

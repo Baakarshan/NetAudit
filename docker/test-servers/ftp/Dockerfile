@@ -1,4 +1,4 @@
-ARG VSFTPD_IMAGE=fauria/vsftpd:latest
+ARG VSFTPD_IMAGE=docker.m.daocloud.io/fauria/vsftpd:latest
 FROM ${VSFTPD_IMAGE}
 
 RUN mkdir -p /home/vsftpd/alice/pub && \
