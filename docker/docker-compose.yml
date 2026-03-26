@@ -91,7 +91,7 @@ services:
     build:
       context: ./test-servers/ftp
       args:
-        VSFTPD_IMAGE: ${TEST_FTP_IMAGE:-docker.m.daocloud.io/fauria/vsftpd:latest}
+        FTP_BASE_IMAGE: ${TEST_FTP_IMAGE:-docker.m.daocloud.io/library/alpine:3.19}
     container_name: netaudit-test-ftp
     ports:
       - "2121:21"
