@@ -26,6 +26,7 @@ services:
       args:
         GRADLE_IMAGE: ${BACKEND_BUILDER_IMAGE:-docker.m.daocloud.io/library/gradle:8.10.2-jdk21-alpine}
         JRE_IMAGE: ${BACKEND_RUNTIME_IMAGE:-docker.m.daocloud.io/library/eclipse-temurin:21-jre-alpine}
+        ALPINE_MIRROR: ${ALPINE_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/alpine}
     container_name: netaudit-backend
     depends_on:
       postgres:
@@ -92,6 +93,7 @@ services:
       context: ./test-servers/ftp
       args:
         FTP_BASE_IMAGE: ${TEST_FTP_IMAGE:-docker.m.daocloud.io/library/alpine:3.19}
+        ALPINE_MIRROR: ${ALPINE_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/alpine}
     container_name: netaudit-test-ftp
     ports:
       - "2121:21"
@@ -108,6 +110,7 @@ services:
       context: ./test-servers/telnet
       args:
         ALPINE_IMAGE: ${TEST_TELNET_ALPINE_IMAGE:-docker.m.daocloud.io/library/alpine:3.19}
+        ALPINE_MIRROR: ${ALPINE_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/alpine}
     container_name: netaudit-test-telnet
     ports:
       - "2323:23"
@@ -120,6 +123,7 @@ services:
       context: ./test-servers/dns
       args:
         PYTHON_IMAGE: ${TEST_DNS_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-alpine}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
     container_name: netaudit-test-dns
     ports:
       - "1053:53/udp"
@@ -133,6 +137,7 @@ services:
       context: ./test-servers/smtp
       args:
         PYTHON_IMAGE: ${TEST_SMTP_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-alpine}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
     container_name: netaudit-test-smtp
     ports:
       - "2525:25"
@@ -158,6 +163,7 @@ services:
       dockerfile: docker/Dockerfile.test-client
       args:
         ALPINE_IMAGE: ${TEST_CLIENT_ALPINE_IMAGE:-docker.m.daocloud.io/library/alpine:3.19}
+        ALPINE_MIRROR: ${ALPINE_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/alpine}
     container_name: netaudit-test-client
     network_mode: "service:backend"
     depends_on:

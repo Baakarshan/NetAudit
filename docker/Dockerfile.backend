@@ -1,5 +1,6 @@
 ARG GRADLE_IMAGE=docker.m.daocloud.io/library/gradle:8.10.2-jdk21-alpine
 ARG JRE_IMAGE=docker.m.daocloud.io/library/eclipse-temurin:21-jre-alpine
+ARG ALPINE_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/alpine
 
 FROM ${GRADLE_IMAGE} AS builder
 
@@ -8,9 +9,11 @@ COPY backend/ ./
 RUN gradle --no-daemon shadowJar
 
 FROM ${JRE_IMAGE}
+ARG ALPINE_MIRROR
 
 WORKDIR /app
-RUN apk add --no-cache libpcap libpcap-dev netcat-openbsd curl
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories \
+    && apk add --no-cache libpcap libpcap-dev netcat-openbsd curl
 
 COPY --from=builder /workspace/backend/build/libs/*-all.jar /app/app.jar
 COPY scripts/wait-for-it.sh /wait-for-it.sh

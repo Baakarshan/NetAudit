@@ -1,7 +1,10 @@
 ARG FTP_BASE_IMAGE=docker.m.daocloud.io/library/alpine:3.19
+ARG ALPINE_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/alpine
 FROM ${FTP_BASE_IMAGE}
+ARG ALPINE_MIRROR
 
-RUN apk add --no-cache vsftpd shadow
+RUN sed -i "s|https://dl-cdn.alpinelinux.org/alpine|${ALPINE_MIRROR}|g" /etc/apk/repositories && \
+    apk add --no-cache vsftpd shadow
 
 RUN adduser -D -h /home/alice -s /bin/sh alice && \
     echo 'alice:password123' | chpasswd && \

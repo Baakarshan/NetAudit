@@ -1,7 +1,9 @@
 ARG PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.12-alpine
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 FROM ${PYTHON_IMAGE}
+ARG PIP_INDEX_URL
 
-RUN pip install aiosmtpd
+RUN pip install -i ${PIP_INDEX_URL} aiosmtpd
 
 RUN cat > /smtp_server.py <<'PYEOF'
 import asyncio

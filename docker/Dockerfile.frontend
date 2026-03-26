@@ -4,6 +4,8 @@ ARG NPM_REGISTRY=https://registry.npmmirror.com
 ARG NPM_REGISTRY_FALLBACK=https://registry.npmjs.org
 
 FROM ${NODE_IMAGE} AS builder
+ARG NPM_REGISTRY
+ARG NPM_REGISTRY_FALLBACK
 
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
