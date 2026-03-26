@@ -8,7 +8,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 $httpHost = "127.0.0.1"
-$httpPort = 18080
+$httpPort = 19080
 $ftpHost = "127.0.0.1"
 $ftpPort = 2121
 $telnetHost = "127.0.0.1"
